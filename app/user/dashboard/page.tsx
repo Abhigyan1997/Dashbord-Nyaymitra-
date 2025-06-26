@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from 'next/link';
 import {
   Calendar,
   Clock,
@@ -58,7 +59,8 @@ export default function UserDashboard() {
 
       // ✅ Fix: Use userId instead of id
       if (userProfile.userId) {
-        const bookingsResponse = await userApi.getAllBookings(userProfile.userId)
+        const bookingsResponse = await userApi.getAllBookings(userProfile.userId, 1, 100)
+
         const bookingsData =
           bookingsResponse.data.orders || bookingsResponse.data.bookings || []
 
@@ -175,13 +177,15 @@ export default function UserDashboard() {
               </h1>
               <p className="text-slate-400 text-lg">Manage your legal consultations and bookings</p>
             </div>
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
-            >
-              <Calendar className="mr-2 h-5 w-5" />
-              Book New Consultation
-            </Button>
+            <Link href="/user/lawyers" passHref>
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
+              >
+                <Calendar className="mr-2 h-5 w-5" />
+                Book New Consultation
+              </Button>
+            </Link>
           </div>
 
           {/* Profile Overview */}
@@ -194,7 +198,11 @@ export default function UserDashboard() {
               <div className="flex flex-col sm:flex-row gap-8">
                 <div className="relative">
                   <Avatar className="h-24 w-24 border-2 border-blue-400/30">
-                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
+                    <AvatarImage
+                      src={user.avatar}
+                      alt={user?.name || "User"}
+                      onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                       {user?.name?.charAt(0) || "U"}
                     </AvatarFallback>

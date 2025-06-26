@@ -24,11 +24,30 @@ export default function UserSettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
 
   const [profileData, setProfileData] = useState({
-    name: "",
+    fullName: "",
     email: "",
     phone: "",
-    address: "",
-  })
+    gender: "",
+    dob: "",
+    language: "",
+    timezone: "",
+    profileImage: "",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      country: "",
+      pincode: "",
+    },
+    emergencyContact: {
+      name: "",
+      relation: "",
+      phone: "",
+    },
+  });
+
+
+
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -44,52 +63,152 @@ export default function UserSettingsPage() {
   })
 
   useEffect(() => {
-    const currentUser = authUtils.getUser()
-    if (currentUser) {
-      setUser(currentUser)
-      setProfileData({
-        name: currentUser.name,
-        email: currentUser.email,
-        phone: mockUser.phone,
-        address: mockUser.address,
-      })
-    }
-  }, [])
+    const fetchProfile = async () => {
+      try {
+        const token = authUtils.getToken(); // Assuming you store JWT token
+        const res = await fetch("http://localhost:5000/api/v1/auth/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch profile");
+
+        const data = await res.json();
+        console.log("Fetched user data:", data);
+        setUser(data);
+
+        setProfileData({
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          gender: data.gender || "",
+          dob: data.dob ? data.dob.slice(0, 10) : "", // format to YYYY-MM-DD
+          language: data.language || "",
+          timezone: data.timezone || "",
+          profileImage: data.profileImage || "",
+          address: {
+            street: data.address?.street || "",
+            city: data.address?.city || "",
+            state: data.address?.state || "",
+            country: data.address?.country || "",
+            pincode: data.address?.pincode || "",
+          },
+          emergencyContact: {
+            name: data.emergencyContact?.name || "",
+            relation: data.emergencyContact?.relation || "",
+            phone: data.emergencyContact?.phone || "",
+          },
+        });
+
+
+        setNotifications({
+          emailBookings: data.notificationPreferences?.email ?? true,
+          smsReminders: data.notificationPreferences?.sms ?? false,
+          marketingEmails: data.notificationPreferences?.whatsapp ?? false,
+          emailReminders: true, // default if not in data
+        });
+
+      } catch (error) {
+        console.error("Failed to load profile:", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
-      // In production: await userApi.updateProfile(profileData)
-      console.log("Profile updated:", profileData)
-      // Update local user data
-      const updatedUser = { ...user, ...profileData }
-      setUser(updatedUser)
-      authUtils.setUser(updatedUser)
+      const token = authUtils.getToken();
+
+      const res = await fetch("http://localhost:5000/api/v1/auth/edit_user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: profileData.fullName,
+          email: profileData.email,
+          phone: profileData.phone,
+          gender: profileData.gender,
+          dob: profileData.dob,
+          profileImage: profileData.profileImage,
+          language: profileData.language,
+          timezone: profileData.timezone,
+          address: {
+            street: profileData.address.street,
+            city: profileData.address.city,
+            state: profileData.address.state,
+            country: profileData.address.country,
+            pincode: profileData.address.pincode,
+          },
+          emergencyContact: {
+            name: profileData.emergencyContact.name,
+            relation: profileData.emergencyContact.relation,
+            phone: profileData.emergencyContact.phone,
+          },
+          notificationPreferences: {
+            email: notifications.emailBookings,
+            sms: notifications.smsReminders,
+            whatsapp: notifications.marketingEmails,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update profile");
+
+      const updated = await res.json();
+      setUser(updated);
+      authUtils.setUser(updated);
     } catch (error) {
-      console.error("Error updating profile:", error)
+      console.error("Error updating profile:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
   const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New passwords do not match")
-      return
+      alert("New passwords do not match");
+      return;
     }
-    setLoading(true)
+    setLoading(true);
     try {
-      // In production: await userApi.changePassword(passwordData)
-      console.log("Password changed")
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      const token = authUtils.getToken(); // get from localStorage/cookie
+      const res = await fetch("http://localhost:5000/api/v1/auth/change-password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      alert("Password changed successfully");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (error) {
-      console.error("Error changing password:", error)
+      if (error instanceof Error) {
+        alert(error.message || "Failed to change password");
+      } else {
+        alert("Failed to change password");
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
   const handleNotificationUpdate = async (key: string, value: boolean) => {
     setNotifications((prev) => ({ ...prev, [key]: value }))
@@ -131,49 +250,113 @@ export default function UserSettingsPage() {
                   <form onSubmit={handleProfileUpdate} className="space-y-6">
                     <div className="flex items-center gap-6">
                       <Avatar className="h-20 w-20">
-                        <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                        <AvatarFallback className="text-lg">{user.name.charAt(0)}</AvatarFallback>
+                        {/* Remove the conditional since we don't have profileImage */}
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-semibold flex items-center justify-center">
+                          {profileData.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                        </AvatarFallback>
                       </Avatar>
+
                       <div>
-                        <Button variant="outline">Change Photo</Button>
+                        <Input
+                          type="url"
+                          placeholder="Image URL"
+                          value={profileData.profileImage}
+                          onChange={(e) => setProfileData((prev) => ({ ...prev, profileImage: e.target.value }))}
+                        />
                         <p className="text-sm text-muted-foreground mt-2">JPG, GIF or PNG. 1MB max.</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input
-                          id="name"
-                          value={profileData.name}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
-                        />
+                        <Label>Full Name</Label>
+                        <Input value={profileData.fullName} onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={profileData.email}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, email: e.target.value }))}
-                        />
+                        <Label>Email</Label>
+                        <Input type="email" value={profileData.email} readOnly />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={profileData.phone}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, phone: e.target.value }))}
-                        />
+                        <Label>Phone</Label>
+                        <Input value={profileData.phone} readOnly />
                       </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input
-                          id="address"
-                          value={profileData.address}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, address: e.target.value }))}
-                        />
+                      <div className="space-y-2">
+                        <Label>Date of Birth</Label>
+                        <Input type="date" value={profileData.dob} onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })} />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Gender</Label>
+                        <select
+                          className="border rounded px-3 py-2 w-full"
+                          value={profileData.gender}
+                          onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
+                        >
+                          <option value="">Select</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Language</Label>
+                        <Input value={profileData.language} onChange={(e) => setProfileData({ ...profileData, language: e.target.value })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Timezone</Label>
+                        <Input value={profileData.timezone} onChange={(e) => setProfileData({ ...profileData, timezone: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <Separator />
+                    <h3 className="font-semibold">Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input placeholder="Street" value={profileData.address.street} onChange={(e) => setProfileData((prev) => ({ ...prev, address: { ...prev.address, street: e.target.value } }))} />
+                      <Input placeholder="City" value={profileData.address.city} onChange={(e) => setProfileData((prev) => ({ ...prev, address: { ...prev.address, city: e.target.value } }))} />
+                      <Input placeholder="State" value={profileData.address.state} onChange={(e) => setProfileData((prev) => ({ ...prev, address: { ...prev.address, state: e.target.value } }))} />
+                      <Input placeholder="Country" value={profileData.address.country} onChange={(e) => setProfileData((prev) => ({ ...prev, address: { ...prev.address, country: e.target.value } }))} />
+                      <Input placeholder="Pincode" value={profileData.address.pincode} onChange={(e) => setProfileData((prev) => ({ ...prev, address: { ...prev.address, pincode: e.target.value } }))} />
+                    </div>
+
+                    <Separator />
+                    <h3 className="font-semibold">Emergency Contact</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {profileData.emergencyContact && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                            placeholder="Name"
+                            value={profileData.emergencyContact.name}
+                            onChange={(e) =>
+                              setProfileData((prev) => ({
+                                ...prev,
+                                emergencyContact: { ...prev.emergencyContact, name: e.target.value },
+                              }))
+                            }
+                          />
+                          <Input
+                            placeholder="Relation"
+                            value={profileData.emergencyContact.relation}
+                            onChange={(e) =>
+                              setProfileData((prev) => ({
+                                ...prev,
+                                emergencyContact: { ...prev.emergencyContact, relation: e.target.value },
+                              }))
+                            }
+                          />
+                          <Input
+                            placeholder="Phone"
+                            value={profileData.emergencyContact.phone}
+                            onChange={(e) =>
+                              setProfileData((prev) => ({
+                                ...prev,
+                                emergencyContact: { ...prev.emergencyContact, phone: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      )}
+
+                      <Input placeholder="Relation" value={profileData.emergencyContact.relation} onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, relation: e.target.value } }))} />
+                      <Input placeholder="Phone" value={profileData.emergencyContact.phone} onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, phone: e.target.value } }))} />
                     </div>
 
                     <Button type="submit" disabled={loading}>
@@ -183,6 +366,7 @@ export default function UserSettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+
 
             <TabsContent value="security" className="space-y-4">
               <Card>

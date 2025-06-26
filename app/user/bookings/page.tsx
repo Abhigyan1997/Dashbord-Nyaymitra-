@@ -1,5 +1,6 @@
 "use client"
-
+import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import { useState, useEffect } from "react"
 import { Calendar, Clock, MapPin, Phone, Video, Search, Filter, Plus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,52 +35,61 @@ interface Booking {
 }
 
 export default function UserBookingsPage() {
+  const [page, setPage] = useState(1);
+  const limit = 5; // Number of bookings per page
+  const [totalPages, setTotalPages] = useState(1);
+
   const [user, setUser] = useState(authUtils.getUser())
   const [bookings, setBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const currentUser = await auth.getProfile()
-        authUtils.setUser(currentUser)
-        setUser(currentUser)
+        const currentUser = await auth.getProfile();
+        authUtils.setUser(currentUser);
+        setUser(currentUser);
 
         if (currentUser.userId) {
-          await loadBookings(currentUser.userId)
+          await loadBookings(currentUser.userId);
         } else {
-          throw new Error("User ID not available")
+          throw new Error("User ID not available");
         }
       } catch (err) {
-        console.error("Error loading data:", err)
-        setError(err instanceof Error ? err.message : "Failed to load data")
+        console.error("Error loading data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadData()
-  }, [])
+    loadData();
+  }, [page]); // <== page triggers new load
+
 
   const loadBookings = async (userId: string) => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      const response = await userApi.getAllBookings(userId)
+      const response = await userApi.getAllBookings(userId, page, limit); // send page and limit
       if (!response.data.success) {
-        throw new Error(response.data.message || "Failed to fetch bookings")
+        throw new Error(response.data.message || "Failed to fetch bookings");
       }
-      setBookings(response.data.bookings || [])
+
+      setBookings(response.data.bookings || []);
+      setTotalPages(response.data.totalPages || 1); // from backend
     } catch (err) {
-      console.error("Error loading bookings:", err)
-      setError("Failed to load bookings. Please try again later.")
+      console.error("Error loading bookings:", err);
+      setError("Failed to load bookings. Please try again later.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
@@ -169,83 +179,100 @@ export default function UserBookingsPage() {
     }).format(amount)
   }
 
-  const BookingCard = ({ booking }: { booking: Booking }) => (
-    <Card className="hover:shadow-md transition-shadow duration-200 group">
-      <CardContent className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-3">
-              <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                {booking.lawyerName}
-              </h4>
-              <Badge className={cn(getStatusColor(booking.status), "rounded-full px-3 py-1")}>
-                {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-              </Badge>
+  const BookingCard = ({ booking }: { booking: Booking }) => {
+    return (
+      <Card
+        className="hover:shadow-md transition-shadow duration-200 group cursor-pointer"
+        onClick={() => router.push(`/user/bookings/${booking._id}`)}
+      >
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-3">
+                <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                  {booking.lawyerName}
+                </h4>
+                <Badge className={cn(getStatusColor(booking.status), "rounded-full px-3 py-1")}>
+                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                </Badge>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{formatDate(booking.date)}</span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{formatTime(booking.slot)}</span>
+                </div>
+
+                <div className={cn(
+                  "flex items-center gap-2 px-3 py-1 rounded-full",
+                  getModeColor(booking.mode)
+                )}>
+                  {getTypeIcon(booking.mode)}
+                  <span className="font-medium">
+                    {booking.mode.charAt(0).toUpperCase() + booking.mode.slice(1)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
+                  <span className="font-medium">{formatAmount(booking.amount)}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{formatDate(booking.date)}</span>
-              </div>
-
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{formatTime(booking.slot)}</span>
-              </div>
-
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-full",
-                getModeColor(booking.mode)
-              )}>
-                {getTypeIcon(booking.mode)}
-                <span className="font-medium">
-                  {booking.mode.charAt(0).toUpperCase() + booking.mode.slice(1)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-full">
-                <span className="font-medium">{formatAmount(booking.amount)}</span>
-              </div>
+            <div className="flex gap-2 flex-wrap">
+              {booking.status === "confirmed" && (
+                <>
+                  <Button variant="outline" size="sm" className="rounded-full" onClick={(e) => e.stopPropagation()}>
+                    Reschedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-600"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click
+                      handleCancelBooking(booking._id);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              )}
+              {booking.status === "completed" && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/user/bookings/${booking._id}`);
+                    }}
+                  >
+                    View Details
+                  </Button>
+                  <Button variant="default" size="sm" className="rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={(e) => e.stopPropagation()}>
+                    Leave Review
+                  </Button>
+                </>
+              )}
+              {booking.status === "cancelled" && (
+                <Button variant="default" size="sm" className="rounded-full" onClick={(e) => e.stopPropagation()}>
+                  Book Again
+                </Button>
+              )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
-          <div className="flex gap-2 flex-wrap">
-            {booking.status === "confirmed" && (
-              <>
-                <Button variant="outline" size="sm" className="rounded-full">
-                  Reschedule
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-600"
-                  onClick={() => handleCancelBooking(booking._id)}
-                >
-                  Cancel
-                </Button>
-              </>
-            )}
-            {booking.status === "completed" && (
-              <>
-                <Button variant="outline" size="sm" className="rounded-full">
-                  View Details
-                </Button>
-                <Button variant="default" size="sm" className="rounded-full bg-emerald-600 hover:bg-emerald-700">
-                  Leave Review
-                </Button>
-              </>
-            )}
-            {booking.status === "cancelled" && (
-              <Button variant="default" size="sm" className="rounded-full">
-                Book Again
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
 
   if (loading) {
     return (
@@ -325,10 +352,12 @@ export default function UserBookingsPage() {
               <h1 className="text-3xl font-bold tracking-tight">My Consultations</h1>
               <p className="text-muted-foreground">Manage your legal bookings and appointments</p>
             </div>
-            <Button size="lg" className="rounded-full gap-2">
-              <Plus className="h-4 w-4" />
-              New Consultation
-            </Button>
+            <Link href="/user/lawyers" passHref>
+              <Button size="lg" className="rounded-full gap-2">
+                <Plus className="h-4 w-4" />
+                New Consultation
+              </Button>
+            </Link>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -391,6 +420,28 @@ export default function UserBookingsPage() {
                 </div>
               )}
             </TabsContent>
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => prev - 1)}
+                >
+                  Previous
+                </Button>
+                <span className="flex items-center px-2 text-sm font-medium">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => prev + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+
 
             <TabsContent value="upcoming" className="space-y-4">
               {upcomingBookings.length === 0 ? (

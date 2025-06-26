@@ -80,11 +80,10 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/25"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent"
-                  }`}
+                  className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${isActive
+                    ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/25"
+                    : "text-slate-300 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent"
+                    }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Icon
@@ -178,11 +177,19 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                       className="relative h-10 w-10 rounded-full border border-white/20 hover:border-white/40"
                     >
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                        {user?.avatar && (
+                          <AvatarImage
+                            src={user.avatar}
+                            alt={user?.name || "User"}
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        )}
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {user.name.charAt(0)}
+                          {user?.name?.charAt(0)?.toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
+
+
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
