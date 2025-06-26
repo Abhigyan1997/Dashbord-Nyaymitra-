@@ -54,13 +54,34 @@ export const authUtils = {
     safeLocalStorage.removeItem("user")
   },
 
-  setUser: (user: AuthUser) => {
-    safeLocalStorage.setItem("user", JSON.stringify(user))
+  setUser: (user: Partial<AuthUser>) => {
+    safeLocalStorage.setItem("user", JSON.stringify(user));
   },
-
   getUser: (): AuthUser | null => {
-    const user = safeLocalStorage.getItem("user")
-    return user ? JSON.parse(user) : null
+    const user = safeLocalStorage.getItem("user");
+    if (!user) return null;
+
+    const parsedUser = JSON.parse(user);
+
+    // Ensure consistent structure
+    return {
+      id: parsedUser.id,
+      userId: parsedUser.userId,
+      name: parsedUser.name || parsedUser.fullName,
+      fullName: parsedUser.fullName || parsedUser.name,
+      email: parsedUser.email,
+      userType: parsedUser.userType,
+      avatar: parsedUser.avatar,
+      token: parsedUser.token,
+      phone: parsedUser.phone || "",
+      address: parsedUser.address || {
+        street: "",
+        city: "",
+        state: "",
+        country: "",
+        pincode: ""
+      }
+    };
   },
 
   isAuthenticated: () => {

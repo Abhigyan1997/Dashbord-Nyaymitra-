@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from 'next/link';
 import { Search, Filter, Star, MapPin, Clock, Video, Phone, Calendar, MessageSquare, User } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ declare global {
 interface Lawyer {
   id: string;
   name: string;
+  fullName: string;
   specialty: string;
   experience: number;
   rating: number;
@@ -49,6 +51,7 @@ interface Lawyer {
   licenseNumber?: string;
   inPersonAvailable?: boolean;
   inPersonLocation?: string;
+  profileImage: string;
 }
 
 export default function FindLawyersPage() {
@@ -264,23 +267,31 @@ export default function FindLawyersPage() {
             {filteredLawyers.map((lawyer) => (
               <Card key={lawyer.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-4 md:p-6">
-                  <div className="flex gap-4">
-                    <Avatar className="h-14 w-14 md:h-16 md:w-16">
-                      <AvatarImage src={lawyer.avatar} alt={lawyer.name} />
-                      <AvatarFallback>{lawyer.name.charAt(0)}</AvatarFallback>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Avatar - Make it smaller on mobile */}
+                    <Avatar className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 mx-auto sm:mx-0">
+                      {lawyer.avatar && lawyer.avatar !== "/placeholder.svg" ? (
+                        <AvatarImage src={lawyer.avatar} alt={lawyer.name} />
+                      ) : (
+                        <AvatarFallback className="bg-primary text-white">
+                          {lawyer.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-base md:text-lg">{lawyer.name}</h3>
-                        <Badge variant="secondary" className="text-xs md:text-sm">{lawyer.specialty}</Badge>
+
+                    {/* Content - Add overflow constraints */}
+                    <div className="flex-1 min-w-0 space-y-3">
+                      {/* Name and Specialty */}
+                      <div className="truncate">
+                        <h3 className="font-semibold text-base md:text-lg truncate">{lawyer.name}</h3>
+                        <Badge variant="secondary" className="text-xs md:text-sm truncate">{lawyer.specialty}</Badge>
                       </div>
 
-                      <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
+                      {/* Rating and Experience - Stack vertically on mobile */}
+                      <div className="flex flex-col sm:flex-row gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 md:h-4 md:w-4 fill-yellow-400 text-yellow-400" />
-                          <span>
-                            {lawyer.rating} ({lawyer.reviews} reviews)
-                          </span>
+                          <span>{lawyer.rating} ({lawyer.reviews} reviews)</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 md:h-4 md:w-4" />
@@ -288,16 +299,25 @@ export default function FindLawyersPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                        <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-                        <span>{lawyer.location}</span>
+                      {/* Location - Ensure it doesn't overflow */}
+                      <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground truncate">
+                        <MapPin className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+                        <span className="truncate">{lawyer.location}</span>
                       </div>
 
-                      <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">{lawyer.bio}</p>
+                      {/* Bio - Limit to 2 lines */}
+                      <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
+                        {lawyer.bio}
+                      </p>
 
-                      <div className="flex flex-wrap gap-1">
+                      {/* Consultation Types - Wrap and add scroll if needed */}
+                      <div className="flex flex-wrap gap-1 overflow-x-auto pb-1">
                         {lawyer.consultationTypes.map((type) => (
-                          <Badge key={type} variant="outline" className="text-xs">
+                          <Badge
+                            key={type}
+                            variant="outline"
+                            className="text-xs whitespace-nowrap"
+                          >
                             {type === "Video Call" && <Video className="mr-1 h-3 w-3" />}
                             {type === "Phone Call" && <Phone className="mr-1 h-3 w-3" />}
                             {type === "Chat" && <MessageSquare className="mr-1 h-3 w-3" />}
@@ -307,17 +327,18 @@ export default function FindLawyersPage() {
                         ))}
                       </div>
 
-                      <div className="flex items-center justify-between pt-2">
-                        <div>
+                      {/* Price and Buttons - Adjust layout for mobile */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 gap-2">
+                        <div className="flex flex-col">
                           <span className="text-base md:text-lg font-semibold">₹{lawyer.hourlyRate}/hr</span>
                           <p className="text-xs text-green-600">{lawyer.availability}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full sm:w-auto">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => viewProfile(lawyer)}
-                            className="text-xs md:text-sm"
+                            className="text-xs md:text-sm flex-1 sm:flex-none"
                           >
                             View Profile
                           </Button>
@@ -329,7 +350,7 @@ export default function FindLawyersPage() {
                             inPersonAvailable={lawyer.inPersonAvailable}
                             inPersonLocation={lawyer.inPersonLocation}
                           >
-                            <Button size="sm" className="text-xs md:text-sm">
+                            <Button size="sm" className="text-xs md:text-sm flex-1 sm:flex-none">
                               <Calendar className="mr-1 h-3 w-3 md:h-4 md:w-4" />
                               Book Now
                             </Button>
@@ -363,9 +384,14 @@ export default function FindLawyersPage() {
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row gap-6">
                     <Avatar className="h-24 w-24 mx-auto sm:mx-0">
-                      <AvatarImage src={selectedLawyer.avatar} alt={selectedLawyer.name} />
-                      <AvatarFallback>{selectedLawyer.name.charAt(0)}</AvatarFallback>
+                      {selectedLawyer.avatar && selectedLawyer.avatar !== "/placeholder.svg" ? (
+                        <AvatarImage src={selectedLawyer.avatar} alt={selectedLawyer.name || "Lawyer"} />
+                      ) : null}
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-semibold">
+                        {(selectedLawyer.name?.charAt(0) || 'U').toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
+
                     <div className="space-y-2 text-center sm:text-left">
                       <h3 className="text-2xl font-bold">{selectedLawyer.name}</h3>
                       <Badge variant="secondary" className="mx-auto sm:mx-0">{selectedLawyer.specialty}</Badge>

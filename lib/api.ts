@@ -40,7 +40,10 @@ export const commonApi = {
 // User API endpoints
 export const userApi = {
   getProfile: () => authApi.getProfile(),
-  getAllBookings: (userId: string) => api.get(`/booking/allOrders/${userId}`),
+  getAllBookings: (userId: string, page = 1, limit = 5) =>
+    api.get(`/booking/allOrders/${userId}`, {
+      params: { page, limit },
+    }),
   getBookingById: (bookingId: string) => api.get(`/booking/${bookingId}`),
   cancelBooking: (bookingId: string) => api.patch(`/booking/${bookingId}/cancel`),
   updateProfile: (data: any) => api.patch("/auth/profile", data),
