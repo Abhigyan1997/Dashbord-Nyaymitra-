@@ -66,7 +66,7 @@ export default function UserSettingsPage() {
     const fetchProfile = async () => {
       try {
         const token = authUtils.getToken(); // Assuming you store JWT token
-        const res = await fetch("http://localhost:5000/api/v1/auth/profile", {
+        const res = await fetch("https://nyaymitra-backend.onrender.com/api/v1/auth/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -124,7 +124,7 @@ export default function UserSettingsPage() {
     try {
       const token = authUtils.getToken();
 
-      const res = await fetch("http://localhost:5000/api/v1/auth/edit_user", {
+      const res = await fetch("https://nyaymitra-backend.onrender.com/api/v1/auth/edit_user", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
