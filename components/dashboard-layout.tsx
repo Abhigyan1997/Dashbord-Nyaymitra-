@@ -27,7 +27,7 @@ import { authUtils } from "@/lib/auth"
 interface DashboardLayoutProps {
   children: React.ReactNode
   userType: "user" | "lawyer"
-  user: {
+  user?: {  // Add the ? to make it optional
     name: string
     email: string
     avatar?: string
@@ -170,58 +170,16 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                   </Badge>
                 </Button>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="relative h-10 w-10 rounded-full border border-white/20 hover:border-white/40"
-                    >
-                      <Avatar className="h-9 w-9">
-                        {user?.avatar && (
-                          <AvatarImage
-                            src={user.avatar}
-                            alt={user?.name || "User"}
-                            onError={(e) => (e.currentTarget.style.display = "none")}
-                          />
-                        )}
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {user?.name?.charAt(0)?.toUpperCase() || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-
-
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-56 bg-slate-800/95 backdrop-blur-xl border-white/10 text-white"
-                    align="end"
-                    forceMount
-                  >
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none text-white">{user.name}</p>
-                        <p className="text-xs leading-none text-slate-400">{user.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-white/10" />
-                    <DropdownMenuItem className="text-slate-300 hover:text-white hover:bg-white/10">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-slate-300 hover:text-white hover:bg-white/10">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-white/10" />
-                    <DropdownMenuItem
-                      onClick={handleLogout}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Log out</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-white">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-xs leading-none text-slate-400">
+                      {user?.email || "No email"}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
               </div>
             </div>
           </GlassCard>

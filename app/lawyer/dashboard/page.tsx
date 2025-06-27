@@ -25,6 +25,15 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { FloatingCard } from "@/components/ui/floating-card"
 import { GradientText } from "@/components/ui/gradient-text"
 import { AnimatedCounter } from "@/components/ui/animated-counter"
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { lawyerApi } from "@/lib/api"
 import { auth } from "@/lib/auth"
@@ -51,12 +60,25 @@ interface LawyerStats {
   averageRating: number
   totalEarnings: string
   thisMonthBookings: number
-  thisMonthEarnings: string
+  thisMonthEarnings: string,
+  netEarnings?: number;
+  platformCommission?: number;
 }
 
 export default function LawyerDashboard() {
   const [lawyer, setLawyer] = useState<any>(null)
   const [consultations, setConsultations] = useState<Consultation[]>([])
+  const [upcomingConsultations, setUpcomingConsultations] = useState<any[]>([])
+  const [selectedConsultation, setSelectedConsultation] = useState<any | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  const [earnings, setEarnings] = useState({
+    totalEarnings: 0,
+    platformCommission: 0,
+    netEarnings: 0,
+    thisMonthEarnings: 0
+  })
+
   const [stats, setStats] = useState<LawyerStats>({
     totalBookings: 0,
     completedSessions: 0,
@@ -79,6 +101,35 @@ export default function LawyerDashboard() {
       // Get lawyer profile
       const lawyerProfile = await auth.getProfile()
       setLawyer(lawyerProfile)
+
+      const upcomingRes = await lawyerApi.getUpcomingConsultations(lawyerProfile.userId);
+      const upcomingRaw = upcomingRes.data?.consultations || [];
+      const transformedUpcoming = upcomingRaw.map((c: any) => ({
+        id: c._id,
+        clientName: c.userDetails?.fullName || "Unknown User",
+        clientEmail: c.userDetails?.email || "N/A",
+        problemDescription: c.description || "No description provided",
+        date: new Date(c.date).toLocaleDateString(),
+        time: c.slot,
+        duration: c.duration || "30 minutes",
+        status: c.status || "pending",
+        type: c.mode === "inPerson" ? "In-Person" : c.mode === "video" ? "Video Call" : "Phone Call",
+        fee: `₹${c.amount}`,
+        amount: c.amount,
+      }))
+
+      setUpcomingConsultations(transformedUpcoming)
+
+      // Get earnings after lawyerProfile is available
+      const earningsResponse = await lawyerApi.getEarnings(lawyerProfile.userId);
+      const earningsData = earningsResponse.data?.data || {}
+
+      setEarnings({
+        totalEarnings: earningsData.totalEarnings || 0,
+        platformCommission: earningsData.platformCommission || 0,
+        netEarnings: earningsData.netEarnings || 0,
+        thisMonthEarnings: earningsData.thisMonthEarnings || 0,
+      });
 
       // Get lawyer consultations/bookings
       if (lawyerProfile.userId) {
@@ -142,17 +193,15 @@ export default function LawyerDashboard() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "Video Call":
-        return <Video className="h-4 w-4" />
+        return <Video className="h-4 w-4 text-blue-400" />
       case "Phone Call":
-        return <Phone className="h-4 w-4" />
+        return <Phone className="h-4 w-4 text-green-400" />
       case "In-Person":
-        return <MapPin className="h-4 w-4" />
+        return <MapPin className="h-4 w-4 text-orange-400" />
       default:
-        return <Calendar className="h-4 w-4" />
+        return <Calendar className="h-4 w-4 text-purple-400" />
     }
   }
-
-  const upcomingConsultations = consultations.filter((c) => c.status === "upcoming" || c.status === "pending")
 
   if (loading) {
     return (
@@ -214,9 +263,8 @@ export default function LawyerDashboard() {
               <div className="flex flex-col sm:flex-row gap-8">
                 <div className="relative">
                   <Avatar className="h-24 w-24 border-2 border-emerald-400/30">
-                    <AvatarImage src={lawyer?.avatar || "/placeholder.svg"} alt={lawyer?.name || "Lawyer"} />
-                    <AvatarFallback className="text-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                      {lawyer?.name?.charAt(0) || "L"}
+                    <AvatarFallback className="text-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                      {lawyer?.name?.charAt(0).toUpperCase() || "L"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
@@ -249,8 +297,8 @@ export default function LawyerDashboard() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-slate-400">Total Earnings</p>
-                      <p className="text-white font-medium">{stats.totalEarnings}</p>
+                      <p className="text-sm font-medium text-slate-400">Net Earnings</p>
+                      <p className="text-white font-medium">₹{earnings.netEarnings.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -327,199 +375,170 @@ export default function LawyerDashboard() {
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-400">Total Earnings</p>
-                    <p className="text-3xl font-bold text-white">{stats.totalEarnings}</p>
+                    <p className="text-sm font-medium text-slate-400">Net Earnings</p>
+                    <p className="text-3xl font-bold text-white">₹{earnings.netEarnings.toLocaleString()}</p>
                     <div className="flex items-center gap-1 text-emerald-400 text-sm">
-                      <Zap className="h-4 w-4" />
-                      <span>{stats.thisMonthEarnings} this month</span>
+                      <span className="text-lg font-bold">₹</span>
+                      <span>{earnings.thisMonthEarnings.toLocaleString()} this month</span>
                     </div>
                   </div>
                   <div className="relative">
-                    <DollarSign className="h-12 w-12 text-emerald-400" />
+                    {/* Replace DollarSign icon with a text ₹ or rupee icon */}
+                    <div className="text-4xl text-emerald-400 font-bold">₹</div>
                     <div className="absolute inset-0 bg-emerald-400/20 blur-lg rounded-full" />
                   </div>
                 </div>
               </div>
             </FloatingCard>
+
           </div>
 
           {/* Upcoming Consultations */}
-          <FloatingCard>
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Upcoming Consultations</h3>
-                  <p className="text-slate-400">Your scheduled client consultations</p>
-                </div>
-                <Badge className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-emerald-500/30 px-3 py-1">
-                  {upcomingConsultations.length} Active
-                </Badge>
-              </div>
-
-              {upcomingConsultations.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="relative mb-6">
-                    <Calendar className="mx-auto h-16 w-16 text-slate-600" />
-                    <div className="absolute inset-0 bg-slate-600/20 blur-xl rounded-full" />
+          {upcomingConsultations.map((consultation) => (
+            <GlassCard
+              key={consultation.id}
+              variant="subtle"
+              className="p-6 cursor-pointer hover:bg-white/5 transition"
+              onClick={() => {
+                setSelectedConsultation(consultation)
+                setIsDialogOpen(true)
+              }}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                <div className="flex-1 space-y-4">
+                  <h4 className="text-white text-lg font-semibold">
+                    {consultation.type} Consultation with {consultation.clientName}
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-400" />
+                      <span>{consultation.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-purple-400" />
+                      <span>{consultation.time}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-emerald-400" />
+                      <span>{consultation.fee}</span>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">No upcoming consultations</h3>
-                  <p className="text-slate-400">Your scheduled consultations will appear here</p>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {upcomingConsultations.map((consultation) => (
-                    <GlassCard key={consultation.id} variant="subtle" className="p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                        <div className="flex-1 space-y-4">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border border-white/20">
-                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                                {consultation.clientName.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h4 className="font-semibold text-white text-lg">{consultation.clientName}</h4>
-                              <p className="text-slate-400">{consultation.clientEmail}</p>
-                            </div>
-                          </div>
+                <div className="flex gap-3">
+                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                    Join
+                  </Button>
+                </div>
+              </div>
+            </GlassCard>
+          ))}
 
-                          <GlassCard variant="subtle" className="p-4">
-                            <p className="text-sm font-medium text-slate-300 mb-2">Problem Description:</p>
-                            <p className="text-sm text-slate-400">{consultation.problemDescription}</p>
-                          </GlassCard>
+          {/* Consultation Details Dialog */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="max-w-md md:max-w-lg bg-slate-800 border-slate-700 rounded-lg">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-white">
+                  Consultation Details
+                </DialogTitle>
+              </DialogHeader>
 
-                          <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-blue-400" />
-                              <span>{consultation.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-purple-400" />
-                              <span>{consultation.time}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {getTypeIcon(consultation.type)}
-                              <span>{consultation.type}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4 text-emerald-400" />
-                              <span className="font-medium">{consultation.fee}</span>
-                            </div>
-                          </div>
-                        </div>
+              {selectedConsultation && (
+                <div className="space-y-6 text-white">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16 border border-emerald-400/30">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
+                        {selectedConsultation.clientName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold text-lg">{selectedConsultation.clientName}</h3>
+                      <p className="text-slate-400 text-sm">{selectedConsultation.clientEmail}</p>
+                    </div>
+                  </div>
 
-                        <div className="flex flex-col gap-3 lg:min-w-[160px]">
-                          <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0">
-                            {consultation.type === "Video Call" && <Video className="mr-2 h-4 w-4" />}
-                            {consultation.type === "Phone Call" && <Phone className="mr-2 h-4 w-4" />}
-                            {consultation.type === "In-Person" && <MapPin className="mr-2 h-4 w-4" />}
-                            Start Session
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-white/20 text-white hover:bg-white/10"
-                            onClick={() => handleCompleteConsultation(consultation.id)}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Mark Complete
-                          </Button>
-                          <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5">
-                            Reschedule
-                          </Button>
-                        </div>
-                      </div>
-                    </GlassCard>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Date</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Calendar className="h-4 w-4 text-blue-400" />
+                        {selectedConsultation.date}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Time</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Clock className="h-4 w-4 text-purple-400" />
+                        {selectedConsultation.time}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Duration</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Clock className="h-4 w-4 text-amber-400" />
+                        {selectedConsultation.duration}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Type</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        {getTypeIcon(selectedConsultation.type)}
+                        {selectedConsultation.type}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Fee</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <DollarSign className="h-4 w-4 text-emerald-400" />
+                        {selectedConsultation.fee}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-400">Status</p>
+                      <Badge
+                        variant={selectedConsultation.status === "completed" ? "default" : "secondary"}
+                        className={
+                          selectedConsultation.status === "completed"
+                            ? "bg-green-600 text-white"
+                            : "bg-yellow-500 text-black"
+                        }
+                      >
+                        {selectedConsultation.status}
+                      </Badge>
+
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <p className="text-sm font-medium text-slate-400">Problem Description</p>
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <p className="text-white">
+                        {selectedConsultation.problemDescription || "No description provided"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex-1"
+                      onClick={() => {
+                        // Handle join consultation
+                        setIsDialogOpen(false)
+                      }}
+                    >
+                      Join Consultation
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-slate-600 hover:bg-slate-700"
+                      onClick={() => setIsDialogOpen(false)}
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               )}
-            </div>
-          </FloatingCard>
-
-          {/* Performance Insights */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <FloatingCard>
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <TrendingUp className="h-6 w-6 text-emerald-400" />
-                  <GradientText variant="secondary" className="text-xl font-semibold">
-                    This Month's Performance
-                  </GradientText>
-                </div>
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-300 font-medium">Bookings</span>
-                    <span className="text-white font-bold text-lg">{stats.thisMonthBookings}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-300 font-medium">Earnings</span>
-                    <span className="text-white font-bold text-lg">{stats.thisMonthEarnings}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-300 font-medium">Completion Rate</span>
-                      <span className="text-white font-bold">
-                        {stats.totalBookings > 0
-                          ? Math.round((stats.completedSessions / stats.totalBookings) * 100)
-                          : 0}
-                        %
-                      </span>
-                    </div>
-                    <Progress
-                      value={stats.totalBookings > 0 ? (stats.completedSessions / stats.totalBookings) * 100 : 0}
-                      className="h-3 bg-slate-700"
-                    />
-                  </div>
-                </div>
-              </div>
-            </FloatingCard>
-
-            <FloatingCard>
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <Star className="h-6 w-6 text-yellow-400" />
-                  <GradientText variant="accent" className="text-xl font-semibold">
-                    Client Feedback
-                  </GradientText>
-                </div>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-300 font-medium">Average Rating</span>
-                    <div className="flex items-center gap-2">
-                      <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-white font-bold text-lg">{stats.averageRating}</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-300 font-medium">Total Reviews</span>
-                    <span className="text-white font-bold text-lg">{stats.totalReviews}</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-400">5 stars</span>
-                        <span className="text-slate-300">85%</span>
-                      </div>
-                      <Progress value={85} className="h-2 bg-slate-700" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-400">4 stars</span>
-                        <span className="text-slate-300">12%</span>
-                      </div>
-                      <Progress value={12} className="h-2 bg-slate-700" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-400">3 stars</span>
-                        <span className="text-slate-300">3%</span>
-                      </div>
-                      <Progress value={3} className="h-2 bg-slate-700" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </FloatingCard>
-          </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </ProtectedRoute>
