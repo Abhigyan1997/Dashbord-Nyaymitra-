@@ -14,14 +14,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { mockLawyer } from "@/lib/mock-data"
 import { authUtils } from "@/lib/auth"
+import { lawyerApi } from "@/lib/api" // Assuming you have an API client for lawyer endpoints
+
+interface LawyerProfile {
+  id: string
+  name: string
+  email: string
+  phone: string
+  specialty: string
+  hourlyRate: number
+  // Add other profile fields as needed
+}
+
+interface Availability {
+  monday: { enabled: boolean; start: string; end: string }
+  tuesday: { enabled: boolean; start: string; end: string }
+  wednesday: { enabled: boolean; start: string; end: string }
+  thursday: { enabled: boolean; start: string; end: string }
+  friday: { enabled: boolean; start: string; end: string }
+  saturday: { enabled: boolean; start: string; end: string }
+  sunday: { enabled: boolean; start: string; end: string }
+}
+
+
+
 
 export default function LawyerSettingsPage() {
-  const [lawyer, setLawyer] = useState(mockLawyer)
+  const [lawyer, setLawyer] = useState<LawyerProfile | null>(null)
   const [loading, setLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
+  const [availability, setAvailability] = useState<Availability>({
+    monday: { enabled: false, start: "09:00", end: "17:00" },
+    tuesday: { enabled: false, start: "09:00", end: "17:00" },
+    wednesday: { enabled: false, start: "09:00", end: "17:00" },
+    thursday: { enabled: false, start: "09:00", end: "17:00" },
+    friday: { enabled: false, start: "09:00", end: "17:00" },
+    saturday: { enabled: false, start: "09:00", end: "17:00" },
+    sunday: { enabled: false, start: "09:00", end: "17:00" },
+  })
 
   const [profileData, setProfileData] = useState({
     name: "",
@@ -35,16 +68,6 @@ export default function LawyerSettingsPage() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
-
-  const [availability, setAvailability] = useState({
-    monday: { enabled: true, start: "09:00", end: "17:00" },
-    tuesday: { enabled: true, start: "09:00", end: "17:00" },
-    wednesday: { enabled: true, start: "09:00", end: "17:00" },
-    thursday: { enabled: true, start: "09:00", end: "17:00" },
-    friday: { enabled: true, start: "09:00", end: "17:00" },
-    saturday: { enabled: false, start: "09:00", end: "17:00" },
-    sunday: { enabled: false, start: "09:00", end: "17:00" },
   })
 
   const [notifications, setNotifications] = useState({
@@ -62,30 +85,53 @@ export default function LawyerSettingsPage() {
   })
 
   useEffect(() => {
-    const currentUser = authUtils.getUser()
-    if (currentUser) {
-      setLawyer(currentUser)
-      setProfileData({
-        name: currentUser.name,
-        email: currentUser.email,
-        phone: mockLawyer.phone,
-        specialty: mockLawyer.specialty,
-        hourlyRate: 150,
-      })
+    const fetchProfile = async () => {
+      try {
+        setProfileLoading(true)
+        const response = await lawyerApi.getProfile()
+        const profile = response.data
+        setLawyer(profile)
+        setProfileData({
+          name: profile.fullName,
+          email: profile.email,
+          phone: profile.phone,
+          specialty: profile.specialization,
+          hourlyRate: profile.consultationFee,
+        })
+
+        // Fetch availability data
+        const availabilityResponse = await lawyerApi.getLawyerAvailability(profile._id)
+        if (availabilityResponse.data) {
+          setAvailability(availabilityResponse.data)
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error)
+      } finally {
+        setProfileLoading(false)
+      }
     }
+
+    fetchProfile()
   }, [])
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      // In production: await lawyerApi.updateProfile(profileData)
-      console.log("Profile updated:", profileData)
-      const updatedUser = { ...lawyer, ...profileData }
-      setLawyer(updatedUser)
-      authUtils.setUser(updatedUser)
+      const response = await lawyerApi.updateProfile(profileData)
+      const updatedProfile = response.data
+      setLawyer(updatedProfile)
+      setProfileData({
+        name: updatedProfile.fullName,
+        email: updatedProfile.email,
+        phone: updatedProfile.phone,
+        specialty: updatedProfile.specialization,
+        hourlyRate: updatedProfile.consultationFee,
+      })
+      authUtils.setUser(updatedProfile)
     } catch (error) {
       console.error("Error updating profile:", error)
+      // You might want to show an error message to the user
     } finally {
       setLoading(false)
     }
@@ -99,11 +145,15 @@ export default function LawyerSettingsPage() {
     }
     setLoading(true)
     try {
-      // In production: await lawyerApi.changePassword(passwordData)
-      console.log("Password changed")
+      await lawyerApi.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      })
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      // Show success message
     } catch (error) {
       console.error("Error changing password:", error)
+      // Show error message
     } finally {
       setLoading(false)
     }
@@ -141,6 +191,30 @@ export default function LawyerSettingsPage() {
     { key: "saturday", label: "Saturday" },
     { key: "sunday", label: "Sunday" },
   ]
+
+  if (profileLoading) {
+    return (
+      <ProtectedRoute requiredUserType="lawyer">
+        <DashboardLayout userType="lawyer">
+          <div className="flex justify-center items-center h-64">
+            <p>Loading profile...</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  }
+
+  if (!lawyer) {
+    return (
+      <ProtectedRoute requiredUserType="lawyer">
+        <DashboardLayout userType="lawyer">
+          <div className="flex justify-center items-center h-64">
+            <p>Failed to load profile</p>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  }
 
   return (
     <ProtectedRoute requiredUserType="lawyer">
@@ -206,7 +280,7 @@ export default function LawyerSettingsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+                        <Label htmlFor="hourlyRate">Hourly Rate</Label>
                         <Input
                           id="hourlyRate"
                           type="number"

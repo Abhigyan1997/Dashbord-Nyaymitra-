@@ -61,13 +61,27 @@ export const userApi = {
 // Lawyer API endpoints
 export const lawyerApi = {
   getProfile: () => authApi.getProfile(),
-  getAllBookings: (lawyerId: string) => api.get(`/booking/lawyer_allorders/${lawyerId}`),
+  getAllBookings: (lawyerId: string, page = 1, limit = 10) =>
+    api.get(`/booking/lawyer_allorders/${lawyerId}?page=${page}&limit=${limit}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }),
   getBookingById: (bookingId: string) => api.get(`/booking/${bookingId}`),
   getStats: () => api.get("/lawyer/stats"),
-  completeConsultation: (consultationId: string) => api.patch(`/booking/${consultationId}/complete`),
+  completeConsultation: (bookingId: string) => api.patch(`/lawyer/${bookingId}/complete`),
   updateProfile: (data: any) => api.patch("/auth/profile", data),
   getReviews: (lawyerId: string) => api.get(`/lawyer/reviews/${lawyerId}`),
   getLawyerAvailability: (lawyerId: string) => api.get(`/lawyer/${lawyerId}`),
+  getEarnings: (lawyerId: string) => api.get(`/lawyer/earnings/${lawyerId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  }),
+  getUpcomingConsultations: (lawyerId: string) => api.get(`/lawyer/upcoming-consultations/${lawyerId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.post("/auth/change-password", data),
+
 }
 
 
