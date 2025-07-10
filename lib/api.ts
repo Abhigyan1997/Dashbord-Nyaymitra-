@@ -2,7 +2,7 @@ import axios from "axios"
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: "https://nyaymitra-backend.onrender.com/api/v1",
+  baseURL: "http://localhost:5000/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -81,7 +81,9 @@ export const lawyerApi = {
   }),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.post("/auth/change-password", data),
-
+  uploadVerificationDocument: (formData: FormData) => axios.post('/lawyer/verification/documents', formData),
+  submitVerification: () => axios.post('/lawyer/verification/submit'),
+  resubmitVerification: () => axios.post('/lawyer/verification/resubmit'),
 }
 
 
