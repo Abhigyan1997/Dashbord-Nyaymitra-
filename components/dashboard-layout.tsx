@@ -97,6 +97,17 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
           })}
         </ul>
       </nav>
+
+      {/* Logout button in sidebar */}
+      <div className="relative z-10 px-4 pb-6">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent transition-all duration-300"
+        >
+          <LogOut className="h-5 w-5 text-red-400" />
+          Logout
+        </button>
+      </div>
     </div>
   )
 
@@ -170,16 +181,38 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                   </Badge>
                 </Button>
 
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none text-white">
-                      {user?.name || "User"}
-                    </p>
-                    <p className="text-xs leading-none text-slate-400">
-                      {user?.email || "No email"}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user?.avatar} alt={user?.name} />
+                        <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                          {user?.name?.charAt(0) || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-slate-800 border-white/10" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none text-white">
+                          {user?.name || "User"}
+                        </p>
+                        <p className="text-xs leading-none text-slate-400">
+                          {user?.email || "No email"}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem
+                      className="text-red-400 focus:text-red-300 focus:bg-red-500/10"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </GlassCard>

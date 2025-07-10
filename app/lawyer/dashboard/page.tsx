@@ -33,10 +33,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { lawyerApi } from "@/lib/api"
 import { auth } from "@/lib/auth"
+import { AxiosError } from "axios"
 
 interface Consultation {
   _id: string
@@ -60,33 +60,31 @@ interface LawyerStats {
   averageRating: number
   totalEarnings: string
   thisMonthBookings: number
-  thisMonthEarnings: string,
-  netEarnings?: number;
-  platformCommission?: number;
+  thisMonthEarnings: string
+  netEarnings?: number
+  platformCommission?: number
 }
 
 export default function LawyerDashboard() {
   const [lawyer, setLawyer] = useState<any>(null)
   const [consultations, setConsultations] = useState<Consultation[]>([])
-  const [upcomingConsultations, setUpcomingConsultations] = useState<any[]>([])
-  const [selectedConsultation, setSelectedConsultation] = useState<any | null>(null)
+  const [upcomingConsultations, setUpcomingConsultations] = useState<Consultation[]>([])
+  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-
   const [earnings, setEarnings] = useState({
     totalEarnings: 0,
     platformCommission: 0,
     netEarnings: 0,
     thisMonthEarnings: 0
   })
-
   const [stats, setStats] = useState<LawyerStats>({
     totalBookings: 0,
     completedSessions: 0,
     totalReviews: 0,
     averageRating: 0,
-    totalEarnings: "$0",
+    totalEarnings: "₹0",
     thisMonthBookings: 0,
-    thisMonthEarnings: "$0",
+    thisMonthEarnings: "₹0",
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -102,41 +100,59 @@ export default function LawyerDashboard() {
       const lawyerProfile = await auth.getProfile()
       setLawyer(lawyerProfile)
 
-      const upcomingRes = await lawyerApi.getUpcomingConsultations(lawyerProfile.userId);
-      const upcomingRaw = upcomingRes.data?.consultations || [];
-      const transformedUpcoming = upcomingRaw.map((c: any) => ({
-        id: c._id,
-        clientName: c.userDetails?.fullName || "Unknown User",
-        clientEmail: c.userDetails?.email || "N/A",
-        problemDescription: c.description || "No description provided",
-        date: new Date(c.date).toLocaleDateString(),
-        time: c.slot,
-        duration: c.duration || "30 minutes",
-        status: c.status || "pending",
-        type: c.mode === "inPerson" ? "In-Person" : c.mode === "video" ? "Video Call" : "Phone Call",
-        fee: `₹${c.amount}`,
-        amount: c.amount,
-      }))
+      try {
+        // Get upcoming consultations
+        const upcomingRes = await lawyerApi.getUpcomingConsultations(lawyerProfile.userId)
+        const upcomingRaw = upcomingRes.data?.consultations || []
+        const transformedUpcoming = upcomingRaw.map((c: any) => ({
+          id: c._id,
+          clientName: c.userDetails?.fullName || "Unknown User",
+          clientEmail: c.userDetails?.email || "N/A",
+          problemDescription: c.description || "No description provided",
+          date: new Date(c.date).toLocaleDateString(),
+          time: c.slot,
+          duration: c.duration || "30 minutes",
+          status: c.status || "pending",
+          type: c.mode === "inPerson" ? "In-Person" : c.mode === "video" ? "Video Call" : "Phone Call",
+          fee: `₹${c.amount}`,
+          amount: c.amount,
+        }))
+        setUpcomingConsultations(transformedUpcoming)
+      } catch (upcomingError) {
+        console.log("No upcoming consultations found")
+        setUpcomingConsultations([])
+      }
 
-      setUpcomingConsultations(transformedUpcoming)
+      try {
+        // Get earnings data
+        const earningsResponse = await lawyerApi.getEarnings(lawyerProfile.userId)
+        const earningsData = earningsResponse.data?.data || {
+          totalEarnings: 0,
+          platformCommission: 0,
+          netEarnings: 0,
+          thisMonthEarnings: 0
+        }
+        setEarnings({
+          totalEarnings: earningsData.totalEarnings || 0,
+          platformCommission: earningsData.platformCommission || 0,
+          netEarnings: earningsData.netEarnings || 0,
+          thisMonthEarnings: earningsData.thisMonthEarnings || 0,
+        })
+      } catch (earningsError) {
+        console.log("No earnings data found")
+        setEarnings({
+          totalEarnings: 0,
+          platformCommission: 0,
+          netEarnings: 0,
+          thisMonthEarnings: 0
+        })
+      }
 
-      // Get earnings after lawyerProfile is available
-      const earningsResponse = await lawyerApi.getEarnings(lawyerProfile.userId);
-      const earningsData = earningsResponse.data?.data || {}
-
-      setEarnings({
-        totalEarnings: earningsData.totalEarnings || 0,
-        platformCommission: earningsData.platformCommission || 0,
-        netEarnings: earningsData.netEarnings || 0,
-        thisMonthEarnings: earningsData.thisMonthEarnings || 0,
-      });
-
-      // Get lawyer consultations/bookings
-      if (lawyerProfile.userId) {
+      try {
+        // Get all bookings
         const consultationsResponse = await lawyerApi.getAllBookings(lawyerProfile.userId)
-        const consultationsData = consultationsResponse.data.orders || consultationsResponse.data.bookings || []
+        const consultationsData = consultationsResponse.data?.orders || consultationsResponse.data?.bookings || []
 
-        // Transform API data to match our interface
         const transformedConsultations = consultationsData.map((consultation: any) => ({
           _id: consultation._id || consultation.id,
           id: consultation._id || consultation.id,
@@ -148,13 +164,12 @@ export default function LawyerDashboard() {
           duration: consultation.duration || "30 minutes",
           status: consultation.status || "pending",
           type: consultation.type || consultation.consultationType || "Video Call",
-          fee: consultation.fee || `$${consultation.amount || 150}`,
-          amount: consultation.amount || 150,
+          fee: consultation.fee || `₹${consultation.amount || 0}`,
+          amount: consultation.amount || 0,
         }))
-
         setConsultations(transformedConsultations)
 
-        // Calculate stats from consultations
+        // Calculate stats
         const totalBookings = transformedConsultations.length
         const completedSessions = transformedConsultations.filter((c: any) => c.status === "completed").length
         const totalEarnings = transformedConsultations.reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
@@ -162,28 +177,46 @@ export default function LawyerDashboard() {
         setStats({
           totalBookings,
           completedSessions,
-          totalReviews: Math.floor(completedSessions * 0.8), // Estimate
-          averageRating: 4.8,
-          totalEarnings: `$${totalEarnings.toLocaleString()}`,
-          thisMonthBookings: Math.floor(totalBookings * 0.3), // Estimate
-          thisMonthEarnings: `$${Math.floor(totalEarnings * 0.3).toLocaleString()}`,
+          totalReviews: completedSessions > 0 ? Math.floor(completedSessions * 0.8) : 0,
+          averageRating: completedSessions > 0 ? 4.8 : 0,
+          totalEarnings: `₹${totalEarnings.toLocaleString()}`,
+          thisMonthBookings: totalBookings > 0 ? Math.floor(totalBookings * 0.3) : 0,
+          thisMonthEarnings: `₹${totalEarnings > 0 ? Math.floor(totalEarnings * 0.3).toLocaleString() : 0}`,
+        })
+      } catch (bookingsError) {
+        console.log("No bookings data found")
+        setConsultations([])
+        setStats({
+          totalBookings: 0,
+          completedSessions: 0,
+          totalReviews: 0,
+          averageRating: 0,
+          totalEarnings: "₹0",
+          thisMonthBookings: 0,
+          thisMonthEarnings: "₹0",
         })
       }
+
     } catch (error: any) {
       console.error("Error loading lawyer data:", error)
-      setError(error.message || "Failed to load data")
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        setError("Profile not found")
+      } else {
+        setError(error.message || "Failed to load data")
+      }
     } finally {
       setLoading(false)
     }
   }
 
+  // ... rest of the component code remains the same ...
   const handleCompleteConsultation = async (consultationId: string) => {
     try {
       await lawyerApi.completeConsultation(consultationId)
-      setConsultations((prev) =>
-        prev.map((consultation) =>
-          consultation.id === consultationId ? { ...consultation, status: "completed" as const } : consultation,
-        ),
+      setConsultations(prev =>
+        prev.map(consultation =>
+          consultation.id === consultationId ? { ...consultation, status: "completed" } : consultation
+        )
       )
     } catch (error) {
       console.error("Error completing consultation:", error)
@@ -293,7 +326,9 @@ export default function LawyerDashboard() {
                       <p className="text-sm font-medium text-slate-400">Rating</p>
                       <div className="flex items-center gap-2">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-white font-medium">{stats.averageRating}</span>
+                        <span className="text-white font-medium">
+                          {stats.averageRating || "Not rated"}
+                        </span>
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -316,10 +351,14 @@ export default function LawyerDashboard() {
                     <p className="text-3xl font-bold text-white">
                       <AnimatedCounter value={stats.totalBookings} />
                     </p>
-                    <div className="flex items-center gap-1 text-emerald-400 text-sm">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>+{stats.thisMonthBookings} this month</span>
-                    </div>
+                    {stats.totalBookings > 0 ? (
+                      <div className="flex items-center gap-1 text-emerald-400 text-sm">
+                        <TrendingUp className="h-4 w-4" />
+                        <span>+{stats.thisMonthBookings} this month</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No bookings yet</p>
+                    )}
                   </div>
                   <div className="relative">
                     <Calendar className="h-12 w-12 text-blue-400" />
@@ -358,10 +397,14 @@ export default function LawyerDashboard() {
                     <p className="text-3xl font-bold text-white">
                       <AnimatedCounter value={stats.totalReviews} />
                     </p>
-                    <div className="flex items-center gap-1 text-yellow-400 text-sm">
-                      <Star className="h-4 w-4 fill-yellow-400" />
-                      <span>{stats.averageRating} average</span>
-                    </div>
+                    {stats.totalReviews > 0 ? (
+                      <div className="flex items-center gap-1 text-yellow-400 text-sm">
+                        <Star className="h-4 w-4 fill-yellow-400" />
+                        <span>{stats.averageRating} average</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No reviews yet</p>
+                    )}
                   </div>
                   <div className="relative">
                     <Users className="h-12 w-12 text-purple-400" />
@@ -377,61 +420,83 @@ export default function LawyerDashboard() {
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-slate-400">Net Earnings</p>
                     <p className="text-3xl font-bold text-white">₹{earnings.netEarnings.toLocaleString()}</p>
-                    <div className="flex items-center gap-1 text-emerald-400 text-sm">
-                      <span className="text-lg font-bold">₹</span>
-                      <span>{earnings.thisMonthEarnings.toLocaleString()} this month</span>
-                    </div>
+                    {earnings.netEarnings > 0 ? (
+                      <div className="flex items-center gap-1 text-emerald-400 text-sm">
+                        <span className="text-lg font-bold">₹</span>
+                        <span>{earnings.thisMonthEarnings.toLocaleString()} this month</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No earnings yet</p>
+                    )}
                   </div>
                   <div className="relative">
-                    {/* Replace DollarSign icon with a text ₹ or rupee icon */}
                     <div className="text-4xl text-emerald-400 font-bold">₹</div>
                     <div className="absolute inset-0 bg-emerald-400/20 blur-lg rounded-full" />
                   </div>
                 </div>
               </div>
             </FloatingCard>
-
           </div>
 
           {/* Upcoming Consultations */}
-          {upcomingConsultations.map((consultation) => (
-            <GlassCard
-              key={consultation.id}
-              variant="subtle"
-              className="p-6 cursor-pointer hover:bg-white/5 transition"
-              onClick={() => {
-                setSelectedConsultation(consultation)
-                setIsDialogOpen(true)
-              }}
-            >
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                <div className="flex-1 space-y-4">
-                  <h4 className="text-white text-lg font-semibold">
-                    {consultation.type} Consultation with {consultation.clientName}
-                  </h4>
-                  <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-400" />
-                      <span>{consultation.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-purple-400" />
-                      <span>{consultation.time}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-emerald-400" />
-                      <span>{consultation.fee}</span>
+          {upcomingConsultations.length > 0 ? (
+            upcomingConsultations.map((consultation) => (
+              <GlassCard
+                key={consultation.id}
+                variant="subtle"
+                className="p-6 cursor-pointer hover:bg-white/5 transition"
+                onClick={() => {
+                  setSelectedConsultation(consultation)
+                  setIsDialogOpen(true)
+                }}
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                  <div className="flex-1 space-y-4">
+                    <h4 className="text-white text-lg font-semibold">
+                      {consultation.type} Consultation with {consultation.clientName}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-blue-400" />
+                        <span>{consultation.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-purple-400" />
+                        <span>{consultation.time}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-emerald-400" />
+                        <span>{consultation.fee}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex gap-3">
+                    <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                      Join
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-                    Join
-                  </Button>
-                </div>
+              </GlassCard>
+            ))
+          ) : (
+            <GlassCard className="p-8 text-center">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <Calendar className="h-12 w-12 text-blue-400" />
+                <h3 className="text-xl font-semibold text-white">No Upcoming Consultations</h3>
+                <p className="text-slate-400 max-w-md">
+                  You don't have any scheduled consultations yet. When you get bookings, they'll appear here.
+                </p>
+                <Button
+                  className="mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                  onClick={() => {
+                    // You could add navigation to a "Get Clients" page here
+                  }}
+                >
+                  Learn how to get clients
+                </Button>
               </div>
             </GlassCard>
-          ))}
+          )}
 
           {/* Consultation Details Dialog */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -504,7 +569,6 @@ export default function LawyerDashboard() {
                       >
                         {selectedConsultation.status}
                       </Badge>
-
                     </div>
                   </div>
 
