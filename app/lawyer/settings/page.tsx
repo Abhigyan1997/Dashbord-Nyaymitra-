@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { User, Bell, Shield, Clock, DollarSign, Eye, EyeOff } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,30 +14,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { authUtils } from "@/lib/auth"
-import { lawyerApi } from "@/lib/api" // Assuming you have an API client for lawyer endpoints
+import { lawyerApi } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
+
+interface SlotAvailability {
+  slots: string[]
+  _id: string
+  day: string
+}
 
 interface LawyerProfile {
   id: string
-  name: string
+  userId: string
+  name: string // Changed from fullName to name to match DashboardLayout expectations
   email: string
   phone: string
-  specialty: string
-  hourlyRate: number
-  // Add other profile fields as needed
+  specialization: string
+  consultationFee: number
+  durationMinutes: number
+  avatar?: string // Added to match possible DashboardLayout expectations
 }
 
-interface Availability {
-  monday: { enabled: boolean; start: string; end: string }
-  tuesday: { enabled: boolean; start: string; end: string }
-  wednesday: { enabled: boolean; start: string; end: string }
-  thursday: { enabled: boolean; start: string; end: string }
-  friday: { enabled: boolean; start: string; end: string }
-  saturday: { enabled: boolean; start: string; end: string }
-  sunday: { enabled: boolean; start: string; end: string }
+interface AvailabilityResponse {
+  success: boolean
+  data: {
+    consultationFee: number
+    durationMinutes: number
+    availability: SlotAvailability[]
+  }
 }
-
-
-
 
 export default function LawyerSettingsPage() {
   const [lawyer, setLawyer] = useState<LawyerProfile | null>(null)
@@ -46,15 +50,7 @@ export default function LawyerSettingsPage() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [availability, setAvailability] = useState<Availability>({
-    monday: { enabled: false, start: "09:00", end: "17:00" },
-    tuesday: { enabled: false, start: "09:00", end: "17:00" },
-    wednesday: { enabled: false, start: "09:00", end: "17:00" },
-    thursday: { enabled: false, start: "09:00", end: "17:00" },
-    friday: { enabled: false, start: "09:00", end: "17:00" },
-    saturday: { enabled: false, start: "09:00", end: "17:00" },
-    sunday: { enabled: false, start: "09:00", end: "17:00" },
-  })
+  const [availability, setAvailability] = useState<SlotAvailability[]>([])
 
   const [profileData, setProfileData] = useState({
     name: "",
@@ -84,13 +80,18 @@ export default function LawyerSettingsPage() {
     minimumBalance: 100,
   })
 
+  const daysOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         setProfileLoading(true)
-        const response = await lawyerApi.getProfile()
-        const profile = response.data
-        setLawyer(profile)
+        const profileResponse = await lawyerApi.getProfile()
+        const profile = profileResponse.data
+        setLawyer({
+          ...profile,
+          name: profile.fullName // Map fullName to name
+        })
         setProfileData({
           name: profile.fullName,
           email: profile.email,
@@ -99,10 +100,12 @@ export default function LawyerSettingsPage() {
           hourlyRate: profile.consultationFee,
         })
 
-        // Fetch availability data
-        const availabilityResponse = await lawyerApi.getLawyerAvailability(profile._id)
-        if (availabilityResponse.data) {
-          setAvailability(availabilityResponse.data)
+        // Fetch availability separately
+        if (profile.userId) {
+          const availabilityResponse = await lawyerApi.getLawyerAvailability(profile.userId)
+          if (availabilityResponse.data?.success) {
+            setAvailability(availabilityResponse.data.data.availability || [])
+          }
         }
       } catch (error) {
         console.error("Error fetching profile:", error)
@@ -118,9 +121,17 @@ export default function LawyerSettingsPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const response = await lawyerApi.updateProfile(profileData)
+      const response = await lawyerApi.updateProfile({
+        ...profileData,
+        fullName: profileData.name, // Map name back to fullName for API
+        specialization: profileData.specialty,
+        consultationFee: profileData.hourlyRate
+      })
       const updatedProfile = response.data
-      setLawyer(updatedProfile)
+      setLawyer({
+        ...updatedProfile,
+        name: updatedProfile.fullName // Map fullName to name
+      })
       setProfileData({
         name: updatedProfile.fullName,
         email: updatedProfile.email,
@@ -131,7 +142,6 @@ export default function LawyerSettingsPage() {
       authUtils.setUser(updatedProfile)
     } catch (error) {
       console.error("Error updating profile:", error)
-      // You might want to show an error message to the user
     } finally {
       setLoading(false)
     }
@@ -150,47 +160,17 @@ export default function LawyerSettingsPage() {
         newPassword: passwordData.newPassword
       })
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
-      // Show success message
     } catch (error) {
       console.error("Error changing password:", error)
-      // Show error message
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAvailabilityUpdate = async (day: string, field: string, value: any) => {
-    setAvailability((prev) => ({
-      ...prev,
-      [day]: { ...prev[day as keyof typeof prev], [field]: value },
-    }))
-    try {
-      // In production: await lawyerApi.updateAvailability({ [day]: { [field]: value } })
-      console.log("Availability updated:", day, field, value)
-    } catch (error) {
-      console.error("Error updating availability:", error)
-    }
-  }
-
-  const handleNotificationUpdate = async (key: string, value: boolean) => {
+  const handleNotificationUpdate = (key: string, value: boolean) => {
     setNotifications((prev) => ({ ...prev, [key]: value }))
-    try {
-      // In production: await lawyerApi.updateNotifications({ [key]: value })
-      console.log("Notification updated:", key, value)
-    } catch (error) {
-      console.error("Error updating notification:", error)
-    }
+    console.log(`Notification preference updated: ${key} = ${value}`)
   }
-
-  const days = [
-    { key: "monday", label: "Monday" },
-    { key: "tuesday", label: "Tuesday" },
-    { key: "wednesday", label: "Wednesday" },
-    { key: "thursday", label: "Thursday" },
-    { key: "friday", label: "Friday" },
-    { key: "saturday", label: "Saturday" },
-    { key: "sunday", label: "Sunday" },
-  ]
 
   if (profileLoading) {
     return (
@@ -234,6 +214,7 @@ export default function LawyerSettingsPage() {
               <TabsTrigger value="payments">Payments</TabsTrigger>
             </TabsList>
 
+            {/* Profile Tab */}
             <TabsContent value="profile" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -299,6 +280,7 @@ export default function LawyerSettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* Availability Tab */}
             <TabsContent value="availability" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -306,41 +288,49 @@ export default function LawyerSettingsPage() {
                     <Clock className="h-5 w-5" />
                     Working Hours
                   </CardTitle>
-                  <CardDescription>Set your availability for consultations</CardDescription>
+                  <CardDescription>Your current availability for consultations</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {days.map((day) => (
-                    <div key={day.key} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <Switch
-                          checked={availability[day.key as keyof typeof availability].enabled}
-                          onCheckedChange={(checked) => handleAvailabilityUpdate(day.key, "enabled", checked)}
-                        />
-                        <Label className="w-20">{day.label}</Label>
-                      </div>
-                      {availability[day.key as keyof typeof availability].enabled && (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            value={availability[day.key as keyof typeof availability].start}
-                            onChange={(e) => handleAvailabilityUpdate(day.key, "start", e.target.value)}
-                            className="w-32"
-                          />
-                          <span>to</span>
-                          <Input
-                            type="time"
-                            value={availability[day.key as keyof typeof availability].end}
-                            onChange={(e) => handleAvailabilityUpdate(day.key, "end", e.target.value)}
-                            className="w-32"
-                          />
+                  {daysOrder.map((dayName) => {
+                    const dayAvailability = availability.find(d => d.day === dayName) || {
+                      _id: `temp-${dayName.toLowerCase()}`,
+                      day: dayName,
+                      slots: []
+                    }
+                    
+                    return (
+                      <div key={dayAvailability._id} className="flex flex-col p-4 border rounded-lg gap-4">
+                        <div className="flex items-center gap-4">
+                          <Label className="w-20">{dayName}</Label>
+                          <div className="flex-1">
+                            {dayAvailability.slots.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {dayAvailability.slots.map((slot, index) => (
+                                  <Badge key={index} variant="outline">
+                                    {slot}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Not available</span>
+                            )}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => console.log("Edit", dayName)}
+                          >
+                            Edit
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    )
+                  })}
                 </CardContent>
               </Card>
             </TabsContent>
 
+            {/* Notifications Tab */}
             <TabsContent value="notifications" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -409,6 +399,7 @@ export default function LawyerSettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* Security Tab */}
             <TabsContent value="security" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -477,6 +468,7 @@ export default function LawyerSettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* Payments Tab */}
             <TabsContent value="payments" className="space-y-4">
               <Card>
                 <CardHeader>
