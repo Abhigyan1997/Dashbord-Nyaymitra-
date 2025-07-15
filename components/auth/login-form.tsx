@@ -74,33 +74,23 @@ export function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-  <Label htmlFor="userType" className="text-white font-medium">
-    I am a
-  </Label>
-  <Select
-    value={formData.userType}
-    onValueChange={(value: "user" | "lawyer") => setFormData((prev) => ({ ...prev, userType: value }))}
-  >
-    <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-blue-400/50 w-full">
-      <SelectValue placeholder="Select user type" />
-    </SelectTrigger>
-    <SelectContent 
-      position="popper"
-      className="bg-slate-800/95 backdrop-blur-xl border-white/10 text-white w-[var(--radix-select-trigger-width)]"
-      style={{
-        minWidth: "var(--radix-select-trigger-width)"
-      }}
-    >
-      <SelectItem value="user" className="focus:bg-white/10">
-        Client
-      </SelectItem>
-      <SelectItem value="lawyer" className="focus:bg-white/10">
-        Lawyer
-      </SelectItem>
-    </SelectContent>
-  </Select>
-</div>
+            <div className="space-y-2">
+              <Label htmlFor="userType" className="text-white font-medium">
+                I am a
+              </Label>
+              <Select
+                value={formData.userType}
+                onValueChange={(value: "user" | "lawyer") => setFormData((prev) => ({ ...prev, userType: value }))}
+              >
+                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-blue-400/50">
+                  <SelectValue placeholder="Select user type" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10 text-white">
+                  <SelectItem value="user">Client</SelectItem>
+                  <SelectItem value="lawyer">Lawyer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white font-medium">
