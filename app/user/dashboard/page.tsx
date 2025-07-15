@@ -56,21 +56,39 @@ export default function UserDashboard() {
     try {
       const userProfile = await auth.getProfile()
       setUser(userProfile)
-
-      // ✅ Fix: Use userId instead of id
+  
       if (userProfile.userId) {
+        // Fetch upcoming consultations from the new endpoint
+        const upcomingResponse = await userApi.getUpcomingConsultations(userProfile.userId)
+        const upcomingConsultations = upcomingResponse.data.consultations || []
+  
+        // Transform the upcoming consultations data to match our Booking interface
+        const transformedUpcoming = upcomingConsultations.map((consultation: any) => ({
+          _id: consultation._id,
+          id: consultation._id,
+          lawyerName: consultation.lawyerDetails?.fullName || "Unknown Lawyer",
+          lawyerSpecialty: consultation.lawyerDetails?.specialization || "General Law",
+          date: new Date(consultation.date).toISOString().split('T')[0],
+          time: consultation.slot || "10:00 AM",
+          status: consultation.status === "confirmed" ? "upcoming" : "pending",
+          type: consultation.mode === "chat" ? "Video Call" : 
+                consultation.mode === "call" ? "Phone Call" : "In-Person",
+          duration: "60 minutes", // Assuming slot is 1 hour
+          fee: `$${consultation.amount || 0}`,
+          amount: consultation.amount || 0,
+          description: "Legal consultation", // Default description
+        }))
+  
+        // Fetch other bookings (you might want to keep this or replace it)
         const bookingsResponse = await userApi.getAllBookings(userProfile.userId, 1, 100)
-
-        const bookingsData =
-          bookingsResponse.data.orders || bookingsResponse.data.bookings || []
-
-        const transformedBookings = bookingsData.map((booking: any) => ({
+        const otherBookingsData = bookingsResponse.data.orders || bookingsResponse.data.bookings || []
+        
+        const transformedOtherBookings = otherBookingsData.map((booking: any) => ({
           _id: booking._id || booking.id,
           id: booking._id || booking.id,
           lawyerName: booking.lawyerName || booking.lawyer?.name || "Unknown Lawyer",
-          lawyerSpecialty:
-            booking.lawyerSpecialty || booking.lawyer?.specialty || "General Law",
-          date: booking.date || booking.scheduledDate || new Date().toISOString().split("T")[0],
+          lawyerSpecialty: booking.lawyerSpecialty || booking.lawyer?.specialty || "General Law",
+          date: booking.date || booking.scheduledDate || new Date().toISOString().split('T')[0],
           time: booking.time || booking.scheduledTime || "10:00 AM",
           status: booking.status || "pending",
           type: booking.type || booking.consultationType || "Video Call",
@@ -79,8 +97,9 @@ export default function UserDashboard() {
           amount: booking.amount || 150,
           description: booking.description || booking.problemDescription,
         }))
-
-        setBookings(transformedBookings)
+  
+        // Combine both sets of bookings
+        setBookings([...transformedUpcoming, ...transformedOtherBookings])
       } else {
         throw new Error("User ID not found in profile")
       }
@@ -364,9 +383,13 @@ export default function UserDashboard() {
                           )}
                         </div>
                         <div className="flex gap-3">
-                          <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
-                            Reschedule
-                          </Button>
+                        <Button 
+  variant="outline" 
+  size="sm" 
+  className="border-teal-500/50 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300"
+>
+  Reschedule
+</Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -392,9 +415,12 @@ export default function UserDashboard() {
                   <h3 className="text-2xl font-bold text-white mb-2">Recent Consultations</h3>
                   <p className="text-slate-400">Your consultation history</p>
                 </div>
-                <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                  View All History
-                </Button>
+                <Button 
+  variant="outline" 
+  className="border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200"
+>
+  View All History
+</Button>
               </div>
 
               {pastBookings.length === 0 ? (
@@ -435,9 +461,13 @@ export default function UserDashboard() {
                           </div>
                         </div>
                         <div className="flex gap-3">
-                          <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
-                            View Details
-                          </Button>
+                        <Button 
+  variant="outline" 
+  size="sm" 
+  className="border-black text-gray-300 hover:bg-gray-900/80 hover:text-white hover:border-gray-600 transition-all"
+>
+  View Details
+</Button>
                           <Button
                             variant="outline"
                             size="sm"
