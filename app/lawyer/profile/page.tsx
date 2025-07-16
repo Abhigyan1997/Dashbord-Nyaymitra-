@@ -310,10 +310,10 @@ export default function LawyerProfilePage() {
               <Badge variant={lawyer.status === 'online' ? 'default' : 'secondary'}>
                 {lawyer.status === 'online' ? 'Online' : 'Offline'}
               </Badge>
-              <Button onClick={() => setIsEditing(!isEditing)}>
+              {/* <Button onClick={() => setIsEditing(!isEditing)}>
                 <Edit className="mr-2 h-4 w-4" />
                 {isEditing ? "Cancel" : "Edit Profile"}
-              </Button>
+              </Button> */}
             </div>
           </div>
 
