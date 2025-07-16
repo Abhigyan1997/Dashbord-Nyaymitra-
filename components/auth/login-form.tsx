@@ -150,7 +150,7 @@ export function LoginForm() {
             <div className="text-center">
               <p className="text-sm text-slate-400">
                 Don't have an account?{" "}
-                <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium">
+                <Link href="https://nyaymitra.tech/auth/signup" className="text-blue-400 hover:text-blue-300 font-medium">
                   Sign up
                 </Link>
               </p>
