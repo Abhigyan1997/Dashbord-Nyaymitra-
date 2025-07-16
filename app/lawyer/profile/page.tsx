@@ -334,7 +334,9 @@ export default function LawyerProfilePage() {
                     <div className="relative">
                       <Avatar className="h-32 w-32">
                         <AvatarImage src={lawyer.avatar || "/placeholder.svg"} alt={lawyer.fullName} />
-                        <AvatarFallback className="text-2xl">{lawyer.fullName.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="text-2xl">
+                          {lawyer?.fullName ? lawyer.fullName.charAt(0) : ''}
+                        </AvatarFallback>
                       </Avatar>
                       {lawyer.verificationStatus === 'verified' && (
                         <div className="absolute -bottom-2 -right-2">
@@ -356,7 +358,7 @@ export default function LawyerProfilePage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {lawyer.specialization.map((spec, i) => (
+                          {(lawyer.specialization || []).map((spec, i) => (
                             <Badge key={i} variant="outline" className="text-sm">
                               {spec}
                             </Badge>
@@ -364,8 +366,8 @@ export default function LawyerProfilePage() {
                         </div>
                         <div className="flex items-center gap-2 mt-2">
                           <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{lawyer.averageRating.toFixed(1)}</span>
-                          <span className="text-muted-foreground">({lawyer.totalReviews} reviews)</span>
+                          <span className="font-medium">{(lawyer?.averageRating ?? 0).toFixed(1)}</span>
+                          <span className="text-muted-foreground">({lawyer?.totalReviews ?? 0} reviews)</span>
                           <span className="text-muted-foreground">•</span>
                           <div className="flex items-center gap-1 text-muted-foreground">
                             <MapPin className="h-4 w-4" />
@@ -413,7 +415,7 @@ export default function LawyerProfilePage() {
                 />
                 <StatCard
                   title="Avg. Rating"
-                  value={lawyer.averageRating.toFixed(1)}
+                  value={lawyer?.averageRating ?? 0}
                   icon={<Star className="h-5 w-5 text-primary" />}
                   change={stats.ratingGrowth}
                   description="from last month"
@@ -455,7 +457,7 @@ export default function LawyerProfilePage() {
                         <div className="flex items-center gap-1">
                           <Languages className="h-4 w-4 text-muted-foreground" />
                           <p className="text-sm font-medium">
-                            {lawyer.languagesSpoken.length > 0 ? lawyer.languagesSpoken.join(", ") : "Not specified"}
+                            {lawyer?.languagesSpoken?.length > 0 ? lawyer.languagesSpoken.join(", ") : "Not specified"}
                           </p>
                         </div>
                       </div>
@@ -463,16 +465,16 @@ export default function LawyerProfilePage() {
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Consultation Modes</p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {lawyer.consultationModes.video && <ConsultationModeBadge mode="video" />}
-                        {lawyer.consultationModes.call && <ConsultationModeBadge mode="call" />}
-                        {lawyer.consultationModes.chat && <ConsultationModeBadge mode="chat" />}
-                        {lawyer.consultationModes.inPerson && <ConsultationModeBadge mode="inPerson" />}
+                        {lawyer?.consultationModes?.video && <ConsultationModeBadge mode="video" />}
+                        {lawyer?.consultationModes?.call && <ConsultationModeBadge mode="call" />}
+                        {lawyer?.consultationModes?.chat && <ConsultationModeBadge mode="chat" />}
+                        {lawyer?.consultationModes?.inPerson && <ConsultationModeBadge mode="inPerson" />}
                       </div>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Contact</p>
-                      <p className="text-sm font-medium">{lawyer.email}</p>
-                      <p className="text-sm font-medium">{lawyer.phone}</p>
+                      <p className="text-sm font-medium">{lawyer?.email || "Not specified"}</p>
+                      <p className="text-sm font-medium">{lawyer?.phone || "Not specified"}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -771,12 +773,16 @@ export default function LawyerProfilePage() {
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold">{lawyer.averageRating.toFixed(1)}</div>
+                      <div className="text-3xl font-bold">
+                        {(lawyer?.averageRating ?? 0).toFixed(1)}
+                      </div>
                       <div className="flex justify-center">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            className={`h-4 w-4 ${star <= Math.floor(lawyer.averageRating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                            className={`h-4 w-4 ${star <= Math.floor(lawyer?.averageRating ?? 0)
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-gray-300"
                               }`}
                           />
                         ))}
@@ -784,7 +790,7 @@ export default function LawyerProfilePage() {
                       <p className="text-sm text-muted-foreground">Overall Rating</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold">{lawyer.totalReviews}</div>
+                      <div className="text-3xl font-bold">{lawyer?.totalReviews ?? 0}</div>
                       <p className="text-sm text-muted-foreground">Total Reviews</p>
                     </div>
                     <div className="text-center">
@@ -793,29 +799,39 @@ export default function LawyerProfilePage() {
                     </div>
                   </div>
 
-                  {reviews.length > 0 ? (
+                  {reviews?.length > 0 ? (
                     <div className="space-y-4">
                       {reviews.map((review) => (
-                        <div key={review.id} className="border rounded-lg p-4">
+                        <div key={review?.id || Math.random()} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
-                                <AvatarFallback>{review.clientName.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>
+                                  {review?.clientName?.charAt(0) || '?'}
+                                </AvatarFallback>
                               </Avatar>
-                              <span className="font-medium">{review.clientName}</span>
+                              <span className="font-medium">
+                                {review?.clientName || 'Anonymous'}
+                              </span>
                             </div>
                             <div className="flex items-center gap-1">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`h-4 w-4 ${star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                                  className={`h-4 w-4 ${star <= (review?.rating ?? 0)
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "text-gray-300"
                                     }`}
                                 />
                               ))}
                             </div>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-2">{review.comment}</p>
-                          <p className="text-xs text-muted-foreground">{review.date}</p>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {review?.comment || 'No comment provided'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {review?.date || 'Date not available'}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -828,34 +844,33 @@ export default function LawyerProfilePage() {
               </Card>
             </TabsContent>
 
-            {/* Analytics Tab */}
             <TabsContent value="analytics" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                   title="Profile Views"
-                  value={lawyer.profileViews}
+                  value={lawyer?.profileViews ?? 0}
                   icon={<User className="h-5 w-5 text-primary" />}
-                  change={stats.monthlyGrowth}
+                  change={stats?.monthlyGrowth ?? 0}
                   description="from last month"
                 />
                 <StatCard
                   title="Total Earnings"
-                  value={`₹${stats.totalEarnings}`}
+                  value={`₹${stats?.totalEarnings ?? 0}`}
                   icon={<DollarSign className="h-5 w-5 text-primary" />}
-                  description={`₹${stats.thisMonthEarnings} this month`}
+                  description={`₹${stats?.thisMonthEarnings ?? 0} this month`}
                 />
                 <StatCard
                   title="Avg. Rating"
-                  value={lawyer.averageRating.toFixed(1)}
+                  value={(lawyer?.averageRating ?? 0).toFixed(1)}
                   icon={<Star className="h-5 w-5 text-primary" />}
-                  change={stats.ratingGrowth}
+                  change={stats?.ratingGrowth ?? 0}
                   description="from last month"
                 />
                 <StatCard
                   title="Total Cases"
-                  value={lawyer.consultationCount}
+                  value={lawyer?.consultationCount ?? 0}
                   icon={<Briefcase className="h-5 w-5 text-primary" />}
-                  change={stats.caseGrowth}
+                  change={stats?.caseGrowth ?? 0}
                   description="from last month"
                 />
               </div>
