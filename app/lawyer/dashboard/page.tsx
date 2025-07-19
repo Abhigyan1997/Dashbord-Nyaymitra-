@@ -98,6 +98,7 @@ export default function LawyerDashboard() {
     try {
       // Get lawyer profile
       const lawyerProfile = await auth.getProfile()
+      console.log("Lawyer Profile:", lawyerProfile)
       setLawyer(lawyerProfile)
 
       try {

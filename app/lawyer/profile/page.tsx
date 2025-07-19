@@ -321,9 +321,9 @@ export default function LawyerProfilePage() {
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="edit">Edit Profile</TabsTrigger>
-              <TabsTrigger value="verification">Verification</TabsTrigger>
+              {/* <TabsTrigger value="verification">Verification</TabsTrigger> */}
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              {/* <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -399,7 +399,7 @@ export default function LawyerProfilePage() {
               </Card>
 
               {/* Stats Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                   title="Profile Views"
                   value={lawyer.profileViews}
@@ -427,7 +427,7 @@ export default function LawyerProfilePage() {
                   change={stats.caseGrowth}
                   description="from last month"
                 />
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Professional Details Card */}
@@ -500,7 +500,7 @@ export default function LawyerProfilePage() {
               </div>
 
               {/* Performance Metrics */}
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Performance Metrics</CardTitle>
                   <CardDescription>Key indicators of your professional performance</CardDescription>
@@ -533,7 +533,7 @@ export default function LawyerProfilePage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </TabsContent>
 
             {/* Edit Profile Tab */}
@@ -781,8 +781,8 @@ export default function LawyerProfilePage() {
                           <Star
                             key={star}
                             className={`h-4 w-4 ${star <= Math.floor(lawyer?.averageRating ?? 0)
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
                               }`}
                           />
                         ))}
@@ -819,8 +819,8 @@ export default function LawyerProfilePage() {
                                 <Star
                                   key={star}
                                   className={`h-4 w-4 ${star <= (review?.rating ?? 0)
-                                      ? "fill-yellow-400 text-yellow-400"
-                                      : "text-gray-300"
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
                                     }`}
                                 />
                               ))}

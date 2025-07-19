@@ -2,45 +2,40 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { User, Bell, Shield, Clock, DollarSign, Eye, EyeOff } from "lucide-react"
+import { Briefcase, Clock, Shield, DollarSign, Eye, EyeOff, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { authUtils } from "@/lib/auth"
 import { lawyerApi } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/use-toast"
 
 interface SlotAvailability {
-  slots: string[]
-  _id: string
   day: string
+  slots: string[]
+  _id?: string
 }
 
 interface LawyerProfile {
   id: string
   userId: string
-  name: string // Changed from fullName to name to match DashboardLayout expectations
+  name: string
   email: string
   phone: string
   specialization: string
   consultationFee: number
   durationMinutes: number
-  avatar?: string // Added to match possible DashboardLayout expectations
-}
-
-interface AvailabilityResponse {
-  success: boolean
-  data: {
-    consultationFee: number
-    durationMinutes: number
-    availability: SlotAvailability[]
+  bankDetails?: {
+    accountNumber?: string
+    accountHolderName?: string
+    bankName?: string
+    ifscCode?: string
+    branch?: string
   }
 }
 
@@ -52,12 +47,9 @@ export default function LawyerSettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [availability, setAvailability] = useState<SlotAvailability[]>([])
 
-  const [profileData, setProfileData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    specialty: "",
-    hourlyRate: 0,
+  const [professionalData, setProfessionalData] = useState({
+    consultationFee: 0,
+    durationMinutes: 30,
   })
 
   const [passwordData, setPasswordData] = useState({
@@ -66,91 +58,200 @@ export default function LawyerSettingsPage() {
     confirmPassword: "",
   })
 
-  const [notifications, setNotifications] = useState({
-    emailBookings: true,
-    emailReminders: true,
-    smsReminders: true,
-    marketingEmails: false,
-    clientMessages: true,
-  })
-
-  const [paymentSettings, setPaymentSettings] = useState({
-    autoWithdraw: true,
-    withdrawalDay: "friday",
-    minimumBalance: 100,
+  const [bankData, setBankData] = useState({
+    accountHolder: "",
+    accountNumber: "",
+    ifsc: "",
+    upiId: ""
   })
 
   const daysOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
         setProfileLoading(true)
         const profileResponse = await lawyerApi.getProfile()
         const profile = profileResponse.data
-        setLawyer({
-          ...profile,
-          name: profile.fullName // Map fullName to name
-        })
-        setProfileData({
-          name: profile.fullName,
-          email: profile.email,
-          phone: profile.phone,
-          specialty: profile.specialization,
-          hourlyRate: profile.consultationFee,
+        setLawyer(profile)
+
+        setProfessionalData({
+          consultationFee: profile.consultationFee,
+          durationMinutes: profile.durationMinutes || 30
         })
 
-        // Fetch availability separately
+
+        if (profile.bankDetails) {
+          setBankData({
+            accountHolder: profile.bankDetails.accountHolder || "",
+            accountNumber: profile.bankDetails.accountNumber || "",
+            ifsc: profile.bankDetails.ifsc || "",
+            upiId: profile.bankDetails.upiId || ""
+          })
+        }
+
         if (profile.userId) {
           const availabilityResponse = await lawyerApi.getLawyerAvailability(profile.userId)
-          if (availabilityResponse.data?.success) {
-            setAvailability(availabilityResponse.data.data.availability || [])
-          }
+          setAvailability(availabilityResponse.data?.data?.availability || [])
         }
       } catch (error) {
-        console.error("Error fetching profile:", error)
+        console.error("Error fetching data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive"
+        })
       } finally {
         setProfileLoading(false)
       }
     }
 
-    fetchProfile()
+    fetchData()
   }, [])
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const handleSaveSlot = async (day: string, slotIndex: number, newSlot: string) => {
     try {
-      const response = await lawyerApi.updateProfile({
-        ...profileData,
-        fullName: profileData.name, // Map name back to fullName for API
-        specialization: profileData.specialty,
-        consultationFee: profileData.hourlyRate
-      })
-      const updatedProfile = response.data
-      setLawyer({
-        ...updatedProfile,
-        name: updatedProfile.fullName // Map fullName to name
-      })
-      setProfileData({
-        name: updatedProfile.fullName,
-        email: updatedProfile.email,
-        phone: updatedProfile.phone,
-        specialty: updatedProfile.specialization,
-        hourlyRate: updatedProfile.consultationFee,
-      })
-      authUtils.setUser(updatedProfile)
-    } catch (error) {
-      console.error("Error updating profile:", error)
-    } finally {
-      setLoading(false)
+      const [start, end] = newSlot.split('-');
+
+      // Validate time slot
+      if (!start || !end || start >= end) {
+        toast({
+          title: "Invalid Time",
+          description: "Please select valid start and end times",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      const updatedAvailability = availability.map(d =>
+        d.day === day
+          ? {
+            ...d,
+            slots: d.slots.map((slot, idx) =>
+              idx === slotIndex ? `${start}-${end}` : slot
+            ).filter(slot => slot) // Remove any empty slots
+          }
+          : d
+      );
+      setAvailability(updatedAvailability);
+
+      // Prepare data for API - only include days with valid slots
+      const timeSlotsToSend = updatedAvailability
+        .map(d => ({
+          day: d.day,
+          slots: d.slots
+            .filter(slot => slot.includes('-'))
+            .filter(slot => {
+              const [s, e] = slot.split('-');
+              return s && e && s < e;
+            })
+        }))
+        .filter(d => d.slots.length > 0);
+
+      // If no valid slots for this day, send empty array
+      const currentDaySlots = timeSlotsToSend.find(d => d.day === day)?.slots || [];
+
+      await lawyerApi.setAvailability({
+        timeSlots: [{
+          day,
+          slots: currentDaySlots
+        }]
+      });
+
+      toast({
+        title: "Saved",
+        description: `Time slots updated for ${day}`,
+        duration: 2000
+      });
+    } catch (error: any) {
+      console.error("Error saving slot:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to save time slot",
+        variant: "destructive"
+      });
     }
+  };
+
+  const handleAddSlot = (day: string) => {
+    setAvailability(prev => {
+      const existingDay = prev.find(d => d.day === day);
+      if (existingDay) {
+        return prev.map(d =>
+          d.day === day
+            ? { ...d, slots: [...d.slots, ""] } // Add empty slot
+            : d
+        );
+      }
+      return [...prev, { day, slots: [""] }];
+    });
+  };
+
+  const handleRemoveSlot = async (day: string, index: number) => {
+    // Update local state first
+    setAvailability(prev =>
+      prev.map(d =>
+        d.day === day
+          ? { ...d, slots: d.slots.filter((_, i) => i !== index) }
+          : d
+      ).filter(d => d.slots.length > 0)
+    );
+
+    // Get remaining valid slots for this day
+    const daySlots = availability.find(d => d.day === day)?.slots || [];
+    const validSlots = daySlots
+      .filter((_, i) => i !== index) // Remove the deleted slot
+      .filter(slot => slot.includes('-'))
+      .filter(slot => {
+        const [s, e] = slot.split('-');
+        return s && e && s < e;
+      });
+
+    // Update API
+    try {
+      await lawyerApi.setAvailability({
+        timeSlots: [{
+          day,
+          slots: validSlots.length > 0 ? validSlots : []
+        }]
+      });
+
+      toast({
+        title: "Updated",
+        description: `Time slots updated for ${day}`,
+        duration: 2000
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update time slots",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSlotChange = (day: string, index: number, value: string) => {
+    setAvailability(prev =>
+      prev.map(d =>
+        d.day === day
+          ? {
+            ...d,
+            slots: d.slots.map((slot, i) => i === index ? value : slot)
+          }
+          : d
+      )
+    )
   }
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New passwords do not match")
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive"
+      })
       return
     }
     setLoading(true)
@@ -160,16 +261,84 @@ export default function LawyerSettingsPage() {
         newPassword: passwordData.newPassword
       })
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
-    } catch (error) {
-      console.error("Error changing password:", error)
+      toast({
+        title: "Success",
+        description: "Password changed successfully",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to change password",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleNotificationUpdate = (key: string, value: boolean) => {
-    setNotifications((prev) => ({ ...prev, [key]: value }))
-    console.log(`Notification preference updated: ${key} = ${value}`)
+  const handleProfessionalUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const response = await lawyerApi.updateProfile({
+        consultationFee: professionalData.consultationFee,
+        durationMinutes: professionalData.durationMinutes
+      })
+      setLawyer(prev => prev ? {
+        ...prev,
+        consultationFee: professionalData.consultationFee,
+        durationMinutes: professionalData.durationMinutes
+      } : null)
+      toast({
+        title: "Success",
+        description: "Professional details updated",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update professional details",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBankUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      // Transform data to match backend schema exactly
+      const bankDetailsPayload = {
+        accountHolder: bankData.accountHolder,
+        accountNumber: bankData.accountNumber,
+        ifsc: bankData.ifsc,
+        upiId: bankData.upiId
+      }
+
+      const response = await lawyerApi.updateProfile({
+        bankDetails: bankDetailsPayload
+      })
+
+      setLawyer(prev => prev ? {
+        ...prev,
+        bankDetails: bankDetailsPayload
+      } : null)
+
+      toast({
+        title: "Success",
+        description: "Bank details updated successfully",
+      })
+    } catch (error: any) {
+      console.error("Bank update error:", error)
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update bank details",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (profileLoading) {
@@ -202,78 +371,66 @@ export default function LawyerSettingsPage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground">Manage your account settings and preferences</p>
+            <p className="text-muted-foreground">Manage your professional settings</p>
           </div>
 
-          <Tabs defaultValue="profile" className="space-y-4">
+          <Tabs defaultValue="professional" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="availability">Availability</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
+              <TabsTrigger value="professional">
+                <Briefcase className="w-4 h-4 mr-2" />
+                Professional
+              </TabsTrigger>
+              <TabsTrigger value="availability">
+                <Clock className="w-4 h-4 mr-2" />
+                Availability
+              </TabsTrigger>
+              <TabsTrigger value="security">
+                <Shield className="w-4 h-4 mr-2" />
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="payments">
+                <DollarSign className="w-4 h-4 mr-2" />
+                Payments
+              </TabsTrigger>
             </TabsList>
 
-            {/* Profile Tab */}
-            <TabsContent value="profile" className="space-y-4">
+            {/* Professional Tab */}
+            <TabsContent value="professional" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Professional Information
-                  </CardTitle>
-                  <CardDescription>Update your professional details</CardDescription>
+                  <CardTitle>Professional Settings</CardTitle>
+                  <CardDescription>Update your consultation details</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleProfileUpdate} className="space-y-4">
+                  <form onSubmit={handleProfessionalUpdate} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
+                        <Label htmlFor="consultationFee">Consultation Fee (₹)</Label>
                         <Input
-                          id="name"
-                          value={profileData.name}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={profileData.email}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, email: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={profileData.phone}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, phone: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="specialty">Specialty</Label>
-                        <Input
-                          id="specialty"
-                          value={profileData.specialty}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, specialty: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="hourlyRate">Hourly Rate</Label>
-                        <Input
-                          id="hourlyRate"
+                          id="consultationFee"
                           type="number"
-                          value={profileData.hourlyRate}
-                          onChange={(e) =>
-                            setProfileData((prev) => ({ ...prev, hourlyRate: Number.parseInt(e.target.value) }))
-                          }
+                          value={professionalData.consultationFee}
+                          onChange={(e) => setProfessionalData(prev => ({
+                            ...prev,
+                            consultationFee: Number(e.target.value)
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="duration">Duration (minutes)</Label>
+                        <Input
+                          id="duration"
+                          type="number"
+                          value={professionalData.durationMinutes}
+                          onChange={(e) => setProfessionalData(prev => ({
+                            ...prev,
+                            durationMinutes: Number(e.target.value)
+                          }))}
                         />
                       </div>
                     </div>
                     <Button type="submit" disabled={loading}>
-                      {loading ? "Updating..." : "Update Profile"}
+                      {loading ? "Saving..." : "Save Changes"}
                     </Button>
                   </form>
                 </CardContent>
@@ -284,117 +441,111 @@ export default function LawyerSettingsPage() {
             <TabsContent value="availability" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Working Hours
-                  </CardTitle>
-                  <CardDescription>Your current availability for consultations</CardDescription>
+                  <CardTitle>Working Hours</CardTitle>
+                  <CardDescription>
+                    Set your available time slots for each day
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {daysOrder.map((dayName) => {
-                    const dayAvailability = availability.find(d => d.day === dayName) || {
-                      _id: `temp-${dayName.toLowerCase()}`,
-                      day: dayName,
-                      slots: []
-                    }
-                    
+                  {daysOrder.map((day) => {
+                    const dayAvailability = availability.find(d => d.day === day) || { day, slots: [] }
+
                     return (
-                      <div key={dayAvailability._id} className="flex flex-col p-4 border rounded-lg gap-4">
-                        <div className="flex items-center gap-4">
-                          <Label className="w-20">{dayName}</Label>
-                          <div className="flex-1">
-                            {dayAvailability.slots.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {dayAvailability.slots.map((slot, index) => (
-                                  <Badge key={index} variant="outline">
-                                    {slot}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Not available</span>
-                            )}
-                          </div>
-                          <Button 
-                            variant="outline" 
+                      <div key={day} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <Label className="text-lg">{day}</Label>
+                          <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => console.log("Edit", dayName)}
+                            onClick={() => handleAddSlot(day)}
                           >
-                            Edit
+                            Add Time Slot
                           </Button>
                         </div>
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            {/* Notifications Tab */}
-            <TabsContent value="notifications" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5" />
-                    Notification Preferences
-                  </CardTitle>
-                  <CardDescription>Choose how you want to be notified</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Email notifications for new bookings</Label>
-                      <p className="text-sm text-muted-foreground">Get notified when clients book consultations</p>
-                    </div>
-                    <Switch
-                      checked={notifications.emailBookings}
-                      onCheckedChange={(checked) => handleNotificationUpdate("emailBookings", checked)}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Email reminders</Label>
-                      <p className="text-sm text-muted-foreground">Get reminder emails before consultations</p>
-                    </div>
-                    <Switch
-                      checked={notifications.emailReminders}
-                      onCheckedChange={(checked) => handleNotificationUpdate("emailReminders", checked)}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>SMS reminders</Label>
-                      <p className="text-sm text-muted-foreground">Get text message reminders before consultations</p>
-                    </div>
-                    <Switch
-                      checked={notifications.smsReminders}
-                      onCheckedChange={(checked) => handleNotificationUpdate("smsReminders", checked)}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Client messages</Label>
-                      <p className="text-sm text-muted-foreground">Get notified when clients send you messages</p>
-                    </div>
-                    <Switch
-                      checked={notifications.clientMessages}
-                      onCheckedChange={(checked) => handleNotificationUpdate("clientMessages", checked)}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Marketing emails</Label>
-                      <p className="text-sm text-muted-foreground">Receive updates about new features and promotions</p>
-                    </div>
-                    <Switch
-                      checked={notifications.marketingEmails}
-                      onCheckedChange={(checked) => handleNotificationUpdate("marketingEmails", checked)}
-                    />
-                  </div>
+                        {dayAvailability.slots.length > 0 ? (
+                          <div className="space-y-3">
+                            {dayAvailability.slots.map((slot, index) => {
+                              const [startTime, endTime] = slot.includes('-') ? slot.split('-') : ['', ''];
+                              const isComplete = startTime && endTime;
+
+                              return (
+                                <div key={index} className="flex items-end gap-3 p-3 bg-muted/50 rounded-lg">
+                                  <div className="flex-1">
+                                    <Label>From</Label>
+                                    <Select
+                                      value={startTime}
+                                      onValueChange={(value) => {
+                                        const newSlot = `${value}-${endTime}`;
+                                        handleSlotChange(day, index, newSlot);
+                                        if (endTime) handleSaveSlot(day, index, newSlot);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Start time" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-60 overflow-y-auto">
+                                        {generateTimeOptions().map((time) => (
+                                          <SelectItem key={time.value} value={time.value}>
+                                            {time.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="flex-1">
+                                    <Label>To</Label>
+                                    <Select
+                                      value={endTime}
+                                      onValueChange={(value) => {
+                                        const newSlot = `${startTime}-${value}`;
+                                        handleSlotChange(day, index, newSlot);
+                                        if (startTime) handleSaveSlot(day, index, newSlot);
+                                      }}
+                                      disabled={!startTime}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="End time" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-60 overflow-y-auto">
+                                        {generateTimeOptions()
+                                          .filter(time => !startTime || time.value > startTime)
+                                          .map((time) => (
+                                            <SelectItem key={time.value} value={time.value}>
+                                              {time.label}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleRemoveSlot(day, index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+
+                                  {isComplete && (
+                                    <Badge variant="outline" className="ml-2">
+                                      Saved
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center p-4 border rounded bg-muted/50">
+                            <p className="text-sm text-muted-foreground">Click "Add Time Slot" to add availability</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -403,11 +554,8 @@ export default function LawyerSettingsPage() {
             <TabsContent value="security" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Change Password
-                  </CardTitle>
-                  <CardDescription>Update your password to keep your account secure</CardDescription>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>Update your account password</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -418,7 +566,7 @@ export default function LawyerSettingsPage() {
                           id="currentPassword"
                           type={showCurrentPassword ? "text" : "password"}
                           value={passwordData.currentPassword}
-                          onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                         />
                         <Button
                           type="button"
@@ -438,7 +586,7 @@ export default function LawyerSettingsPage() {
                           id="newPassword"
                           type={showNewPassword ? "text" : "password"}
                           value={passwordData.newPassword}
-                          onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                         />
                         <Button
                           type="button"
@@ -457,7 +605,7 @@ export default function LawyerSettingsPage() {
                         id="confirmPassword"
                         type="password"
                         value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       />
                     </div>
                     <Button type="submit" disabled={loading}>
@@ -472,86 +620,50 @@ export default function LawyerSettingsPage() {
             <TabsContent value="payments" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Payment Settings
-                  </CardTitle>
-                  <CardDescription>Manage your payment preferences and bank details</CardDescription>
+                  <CardTitle>Bank Details</CardTitle>
+                  <CardDescription>Update your bank account for receiving payments</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Automatic withdrawals</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Automatically transfer earnings to your bank account
-                      </p>
-                    </div>
-                    <Switch
-                      checked={paymentSettings.autoWithdraw}
-                      onCheckedChange={(checked) => setPaymentSettings((prev) => ({ ...prev, autoWithdraw: checked }))}
-                    />
-                  </div>
-
-                  {paymentSettings.autoWithdraw && (
-                    <>
-                      <Separator />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Withdrawal day</Label>
-                          <Select
-                            value={paymentSettings.withdrawalDay}
-                            onValueChange={(value) => setPaymentSettings((prev) => ({ ...prev, withdrawalDay: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="monday">Monday</SelectItem>
-                              <SelectItem value="tuesday">Tuesday</SelectItem>
-                              <SelectItem value="wednesday">Wednesday</SelectItem>
-                              <SelectItem value="thursday">Thursday</SelectItem>
-                              <SelectItem value="friday">Friday</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Minimum balance ($)</Label>
-                          <Input
-                            type="number"
-                            value={paymentSettings.minimumBalance}
-                            onChange={(e) =>
-                              setPaymentSettings((prev) => ({
-                                ...prev,
-                                minimumBalance: Number.parseInt(e.target.value),
-                              }))
-                            }
-                          />
-                        </div>
+                <CardContent>
+                  <form onSubmit={handleBankUpdate} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="accountHolder">Account Holder Name</Label>
+                        <Input
+                          id="accountHolder"
+                          value={bankData.accountHolder}
+                          onChange={(e) => setBankData(prev => ({ ...prev, accountHolder: e.target.value }))}
+                        />
                       </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bank Account</CardTitle>
-                  <CardDescription>Your linked bank account for payments</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Chase Bank</p>
-                        <p className="text-sm text-muted-foreground">•••• •••• •••• 1234</p>
-                        <p className="text-sm text-muted-foreground">Checking Account</p>
+                      <div className="space-y-2">
+                        <Label htmlFor="accountNumber">Account Number</Label>
+                        <Input
+                          id="accountNumber"
+                          value={bankData.accountNumber}
+                          onChange={(e) => setBankData(prev => ({ ...prev, accountNumber: e.target.value }))}
+                        />
                       </div>
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="ifsc">IFSC Code</Label>
+                        <Input
+                          id="ifsc"
+                          value={bankData.ifsc}
+                          onChange={(e) => setBankData(prev => ({ ...prev, ifsc: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="upiId">UPI ID (Optional)</Label>
+                        <Input
+                          id="upiId"
+                          value={bankData.upiId}
+                          onChange={(e) => setBankData(prev => ({ ...prev, upiId: e.target.value }))}
+                          placeholder="yourname@upi"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <Button variant="outline">Add Bank Account</Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? "Updating..." : "Update Bank Details"}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -561,3 +673,17 @@ export default function LawyerSettingsPage() {
     </ProtectedRoute>
   )
 }
+
+const generateTimeOptions = () => {
+  const options = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      options.push({
+        value: timeValue,
+        label: new Date(`2000-01-01T${timeValue}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      });
+    }
+  }
+  return options;
+};
