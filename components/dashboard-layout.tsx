@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -18,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { GradientText } from "@/components/ui/gradient-text"
@@ -27,7 +26,7 @@ import { authUtils } from "@/lib/auth"
 interface DashboardLayoutProps {
   children: React.ReactNode
   userType: "user" | "lawyer"
-  user?: {  // Add the ? to make it optional
+  user?: {
     name: string
     email: string
     avatar?: string
@@ -57,7 +56,6 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
 
   const NavContent = () => (
     <div className="flex flex-col h-full relative">
-      {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
 
@@ -87,7 +85,8 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Icon
-                    className={`h-5 w-5 transition-all duration-300 ${isActive ? "text-blue-400" : "group-hover:text-blue-400"}`}
+                    className={`h-5 w-5 transition-all duration-300 ${isActive ? "text-blue-400" : "group-hover:text-blue-400"
+                      }`}
                   />
                   {item.label}
                   {isActive && <Sparkles className="h-4 w-4 text-blue-400 ml-auto" />}
@@ -98,7 +97,6 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
         </ul>
       </nav>
 
-      {/* Logout button in sidebar */}
       <div className="relative z-10 px-4 pb-6">
         <button
           onClick={handleLogout}
@@ -118,7 +116,6 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 overflow-hidden">
-      {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -135,6 +132,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
       {/* Mobile Sidebar */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <SheetContent side="left" className="w-72 p-0 bg-slate-900/95 backdrop-blur-xl border-white/10">
+          <SheetTitle className="sr-only">Mobile Navigation</SheetTitle>
           <NavContent />
         </SheetContent>
       </Sheet>
@@ -157,6 +155,10 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                     <span className="sr-only">Toggle navigation menu</span>
                   </Button>
                 </SheetTrigger>
+                <SheetContent side="left" className="w-72 p-0 bg-slate-900/95 backdrop-blur-xl border-white/10">
+                  <SheetTitle className="sr-only">Mobile Navigation</SheetTitle>
+                  <NavContent />
+                </SheetContent>
               </Sheet>
 
               <div className="flex-1 flex items-center gap-4">
@@ -177,7 +179,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                 >
                   <Bell className="h-5 w-5" />
                   <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-gradient-to-r from-red-500 to-pink-500 border-0">
-                    3
+                    10
                   </Badge>
                 </Button>
 
@@ -187,7 +189,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user?.avatar} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                          {user?.name?.charAt(0) || "U"}
+                          {user?.name?.charAt(0) || "L"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>

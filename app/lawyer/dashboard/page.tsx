@@ -38,6 +38,12 @@ import { lawyerApi } from "@/lib/api"
 import { auth } from "@/lib/auth"
 import { AxiosError } from "axios"
 
+interface UserDetails {
+  fullName: string;
+  email: string;
+  phone: string;
+}
+
 interface Consultation {
   _id: string
   id: string
@@ -51,6 +57,8 @@ interface Consultation {
   type: "Video Call" | "Phone Call" | "In-Person"
   fee: string
   amount?: number
+  phone: string
+  userDetails: UserDetails
 }
 
 interface LawyerStats {
@@ -96,13 +104,10 @@ export default function LawyerDashboard() {
   const loadLawyerData = async () => {
     setLoading(true)
     try {
-      // Get lawyer profile
       const lawyerProfile = await auth.getProfile()
-      console.log("Lawyer Profile:", lawyerProfile)
       setLawyer(lawyerProfile)
 
       try {
-        // Get upcoming consultations
         const upcomingRes = await lawyerApi.getUpcomingConsultations(lawyerProfile.userId)
         const upcomingRaw = upcomingRes.data?.consultations || []
         const transformedUpcoming = upcomingRaw.map((c: any) => ({
@@ -117,15 +122,19 @@ export default function LawyerDashboard() {
           type: c.mode === "inPerson" ? "In-Person" : c.mode === "video" ? "Video Call" : "Phone Call",
           fee: `₹${c.amount}`,
           amount: c.amount,
+          phone: c.userDetails?.phone || "",
+          userDetails: {
+            fullName: c.userDetails?.fullName || "Unknown User",
+            email: c.userDetails?.email || "N/A",
+            phone: c.userDetails?.phone || ""
+          }
         }))
         setUpcomingConsultations(transformedUpcoming)
       } catch (upcomingError) {
-        console.log("No upcoming consultations found")
         setUpcomingConsultations([])
       }
 
       try {
-        // Get earnings data
         const earningsResponse = await lawyerApi.getEarnings(lawyerProfile.userId)
         const earningsData = earningsResponse.data?.data || {
           totalEarnings: 0,
@@ -140,7 +149,6 @@ export default function LawyerDashboard() {
           thisMonthEarnings: earningsData.thisMonthEarnings || 0,
         })
       } catch (earningsError) {
-        console.log("No earnings data found")
         setEarnings({
           totalEarnings: 0,
           platformCommission: 0,
@@ -150,7 +158,6 @@ export default function LawyerDashboard() {
       }
 
       try {
-        // Get all bookings
         const consultationsResponse = await lawyerApi.getAllBookings(lawyerProfile.userId)
         const consultationsData = consultationsResponse.data?.orders || consultationsResponse.data?.bookings || []
 
@@ -167,10 +174,15 @@ export default function LawyerDashboard() {
           type: consultation.type || consultation.consultationType || "Video Call",
           fee: consultation.fee || `₹${consultation.amount || 0}`,
           amount: consultation.amount || 0,
+          phone: consultation.userDetails?.phone || consultation.client?.phone || "",
+          userDetails: {
+            fullName: consultation.clientName || consultation.client?.name || "Unknown Client",
+            email: consultation.clientEmail || consultation.client?.email || "unknown@email.com",
+            phone: consultation.userDetails?.phone || consultation.client?.phone || ""
+          }
         }))
         setConsultations(transformedConsultations)
 
-        // Calculate stats
         const totalBookings = transformedConsultations.length
         const completedSessions = transformedConsultations.filter((c: any) => c.status === "completed").length
         const totalEarnings = transformedConsultations.reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
@@ -185,7 +197,6 @@ export default function LawyerDashboard() {
           thisMonthEarnings: `₹${totalEarnings > 0 ? Math.floor(totalEarnings * 0.3).toLocaleString() : 0}`,
         })
       } catch (bookingsError) {
-        console.log("No bookings data found")
         setConsultations([])
         setStats({
           totalBookings: 0,
@@ -200,17 +211,12 @@ export default function LawyerDashboard() {
 
     } catch (error: any) {
       console.error("Error loading lawyer data:", error)
-      if (error instanceof AxiosError && error.response?.status === 404) {
-        setError("Profile not found")
-      } else {
-        setError(error.message || "Failed to load data")
-      }
+      setError(error.message || "Failed to load data")
     } finally {
       setLoading(false)
     }
   }
 
-  // ... rest of the component code remains the same ...
   const handleCompleteConsultation = async (consultationId: string) => {
     try {
       await lawyerApi.completeConsultation(consultationId)
@@ -235,6 +241,26 @@ export default function LawyerDashboard() {
       default:
         return <Calendar className="h-4 w-4 text-purple-400" />
     }
+  }
+
+  const handleJoinConsultation = (consultation: Consultation) => {
+    switch (consultation.type) {
+      case "Video Call":
+        // Replace with your actual video call URL
+        window.open(`https://meet.jit.si/${consultation.id}`, '_blank')
+        break
+      case "Phone Call":
+        if (consultation.userDetails?.phone) {
+          window.location.href = `tel:${consultation.userDetails.phone}`
+        }
+        break
+      case "In-Person":
+        alert(`In-person meeting scheduled at ${consultation.time}. Address will be shared separately.`)
+        break
+      default:
+        console.log('Unknown consultation type')
+    }
+    setIsDialogOpen(false)
   }
 
   if (loading) {
@@ -276,13 +302,6 @@ export default function LawyerDashboard() {
               </h1>
               <p className="text-slate-400 text-lg">Manage your consultations and track your practice</p>
             </div>
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300"
-            >
-              <Calendar className="mr-2 h-5 w-5" />
-              View Schedule
-            </Button>
           </div>
 
           {/* Lawyer Profile Overview */}
@@ -467,13 +486,21 @@ export default function LawyerDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-emerald-400" />
-                        <span>{consultation.fee}</span>
+                        <span>{consultation.amount}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-                      Join
+                    <Button
+                      className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleJoinConsultation(consultation)
+                      }}
+                    >
+                      {consultation.type === "Video Call" ? "Join" :
+                        consultation.type === "Phone Call" ? "Call" :
+                          "View"}
                     </Button>
                   </div>
                 </div>
@@ -489,9 +516,6 @@ export default function LawyerDashboard() {
                 </p>
                 <Button
                   className="mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-                  onClick={() => {
-                    // You could add navigation to a "Get Clients" page here
-                  }}
                 >
                   Learn how to get clients
                 </Button>
@@ -501,7 +525,7 @@ export default function LawyerDashboard() {
 
           {/* Consultation Details Dialog */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-md md:max-w-lg bg-slate-800 border-slate-700 rounded-lg">
+            <DialogContent className="max-w-[95vw] w-[95vw] sm:w-full sm:max-w-md md:max-w-lg bg-slate-800 border-slate-700 rounded-lg">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold text-white">
                   Consultation Details
@@ -509,63 +533,63 @@ export default function LawyerDashboard() {
               </DialogHeader>
 
               {selectedConsultation && (
-                <div className="space-y-6 text-white">
+                <div className="space-y-4 text-white">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border border-emerald-400/30">
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl">
+                    <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border border-emerald-400/30">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xl sm:text-2xl">
                         {selectedConsultation.clientName.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold text-lg">{selectedConsultation.clientName}</h3>
-                      <p className="text-slate-400 text-sm">{selectedConsultation.clientEmail}</p>
+                      <h3 className="font-semibold text-base sm:text-lg">{selectedConsultation.clientName}</h3>
+                      <p className="text-slate-400 text-xs sm:text-sm">{selectedConsultation.clientEmail}</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Date</p>
-                      <p className="flex items-center gap-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-400">Date</p>
+                      <p className="flex items-center gap-2 text-sm sm:text-base font-medium">
                         <Calendar className="h-4 w-4 text-blue-400" />
                         {selectedConsultation.date}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Time</p>
-                      <p className="flex items-center gap-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-400">Time</p>
+                      <p className="flex items-center gap-2 text-sm sm:text-base font-medium">
                         <Clock className="h-4 w-4 text-purple-400" />
                         {selectedConsultation.time}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Duration</p>
-                      <p className="flex items-center gap-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-400">Duration</p>
+                      <p className="flex items-center gap-2 text-sm sm:text-base font-medium">
                         <Clock className="h-4 w-4 text-amber-400" />
                         {selectedConsultation.duration}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Type</p>
-                      <p className="flex items-center gap-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-400">Type</p>
+                      <p className="flex items-center gap-2 text-sm sm:text-base font-medium">
                         {getTypeIcon(selectedConsultation.type)}
                         {selectedConsultation.type}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Fee</p>
-                      <p className="flex items-center gap-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-400">Fee</p>
+                      <p className="flex items-center gap-2 text-sm sm:text-base font-medium">
                         <DollarSign className="h-4 w-4 text-emerald-400" />
-                        {selectedConsultation.fee}
+                        {selectedConsultation.amount}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-slate-400">Status</p>
+                      <p className="text-xs sm:text-sm text-slate-400">Status</p>
                       <Badge
                         variant={selectedConsultation.status === "completed" ? "default" : "secondary"}
                         className={
                           selectedConsultation.status === "completed"
-                            ? "bg-green-600 text-white"
-                            : "bg-yellow-500 text-black"
+                            ? "bg-green-600 text-white text-xs sm:text-sm"
+                            : "bg-yellow-500 text-black text-xs sm:text-sm"
                         }
                       >
                         {selectedConsultation.status}
@@ -574,27 +598,36 @@ export default function LawyerDashboard() {
                   </div>
 
                   <div className="space-y-2 pt-2">
-                    <p className="text-sm font-medium text-slate-400">Problem Description</p>
-                    <div className="bg-slate-700/50 rounded-lg p-4">
-                      <p className="text-white">
-                        {selectedConsultation.problemDescription || "No description provided"}
-                      </p>
+                    <p className="text-xs sm:text-sm font-medium text-slate-400">Client Contact</p>
+                    <div className="bg-slate-700/50 rounded-lg p-3 sm:p-4">
+                      {selectedConsultation.userDetails?.phone ? (
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-5 w-5 text-blue-400" />
+                          <a
+                            href={`tel:${selectedConsultation.userDetails.phone}`}
+                            className="text-white text-sm sm:text-base hover:text-blue-400 transition-colors"
+                          >
+                            {selectedConsultation.userDetails.phone}
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-white text-sm sm:text-base">No phone number provided</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
                     <Button
                       className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex-1"
-                      onClick={() => {
-                        // Handle join consultation
-                        setIsDialogOpen(false)
-                      }}
+                      onClick={() => handleJoinConsultation(selectedConsultation)}
                     >
-                      Join Consultation
+                      {selectedConsultation.type === "Video Call" ? "Join Video Call" :
+                        selectedConsultation.type === "Phone Call" ? "Call Client" :
+                          "View Meeting Details"}
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex-1 border-slate-600 hover:bg-slate-700"
+                      className="flex-1 border-slate-600 hover:bg-slate-700 text-[#0A0A0A]"
                       onClick={() => setIsDialogOpen(false)}
                     >
                       Close

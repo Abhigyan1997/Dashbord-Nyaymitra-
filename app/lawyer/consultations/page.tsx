@@ -322,12 +322,12 @@ export default function LawyerConsultationsPage() {
           <div className="flex flex-col gap-2 lg:min-w-[180px]">
             {booking.status === "confirmed" && (
               <>
-                <Button size="sm" className="w-full">
+                {/* <Button size="sm" className="w-full">
                   {booking.mode === "video" && <Video className="mr-2 h-4 w-4" />}
                   {booking.mode === "call" && <Phone className="mr-2 h-4 w-4" />}
                   {booking.mode === "inPerson" && <MapPin className="mr-2 h-4 w-4" />}
                   Start Session
-                </Button>
+                </Button> */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -688,10 +688,10 @@ export default function LawyerConsultationsPage() {
               <h1 className="text-3xl font-bold tracking-tight">Consultations</h1>
               <p className="text-muted-foreground">Manage your client appointments and consultations</p>
             </div>
-            <Button size="lg">
+            {/* <Button size="lg">
               <Calendar className="mr-2 h-4 w-4" />
               View Calendar
-            </Button>
+            </Button> */}
           </div>
 
           {/* Stats Overview */}

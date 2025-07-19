@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   User, Star, Calendar, DollarSign, Edit, Camera, Briefcase,
-  Languages, MapPin, CheckCircle2, Clock, XCircle, FileText, ShieldCheck
+  Languages, MapPin, CheckCircle2, Clock, XCircle, FileText, ShieldCheck, Phone, MessageSquare, Video
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { lawyerApi } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import { ConsultationModeBadge } from "@/components/consultation-mode-badge";
 import { DocumentUploadCard } from "@/components/document-upload-card";
+
 
 interface LawyerProfile {
   _id: string;
@@ -307,9 +308,9 @@ export default function LawyerProfilePage() {
               <p className="text-muted-foreground">Manage your professional profile and information</p>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant={lawyer.status === 'online' ? 'default' : 'secondary'}>
+              {/* <Badge variant={lawyer.status === 'online' ? 'default' : 'secondary'}>
                 {lawyer.status === 'online' ? 'Online' : 'Offline'}
-              </Badge>
+              </Badge> */}
               {/* <Button onClick={() => setIsEditing(!isEditing)}>
                 <Edit className="mr-2 h-4 w-4" />
                 {isEditing ? "Cancel" : "Edit Profile"}
@@ -325,72 +326,94 @@ export default function LawyerProfilePage() {
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
               {/* <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
             </TabsList>
-
             <TabsContent value="overview" className="space-y-6">
-              {/* Profile Header Card */}
-              <Card>
-                <CardContent className="p-6">
+              {/* Profile Header Card - Enhanced */}
+              <Card className="relative overflow-hidden">
+                {/* Decorative element */}
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-20"></div>
+                <CardContent className="p-6 relative">
                   <div className="flex flex-col sm:flex-row gap-6">
-                    <div className="relative">
-                      <Avatar className="h-32 w-32">
-                        <AvatarImage src={lawyer.avatar || "/placeholder.svg"} alt={lawyer.fullName} />
-                        <AvatarFallback className="text-2xl">
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="h-32 w-32 border-4 border-white shadow-md">
+                        <AvatarImage src={lawyer.avatar || "/placeholder-lawyer.svg"} alt={lawyer.fullName} />
+                        <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-secondary text-white">
                           {lawyer?.fullName ? lawyer.fullName.charAt(0) : ''}
                         </AvatarFallback>
                       </Avatar>
                       {lawyer.verificationStatus === 'verified' && (
                         <div className="absolute -bottom-2 -right-2">
-                          <div className="bg-white p-1 rounded-full">
+                          <div className="bg-white p-1 rounded-full shadow-md">
                             <ShieldCheck className="h-6 w-6 text-green-600" />
                           </div>
                         </div>
                       )}
+                      <div className={`absolute top-0 right-0 p-1 rounded-full ${lawyer.status === 'online' ? 'bg-green-500' : 'bg-gray-400'} border-2 border-white`}></div>
                     </div>
+
                     <div className="flex-1 space-y-4">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-2xl font-bold">{lawyer.fullName}</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="text-2xl font-bold text-gray-900">{lawyer.fullName}</h2>
                           {lawyer.verifiedByPlatform && (
-                            <Badge variant="default" className="flex items-center gap-1">
+                            <Badge variant="default" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-100">
                               <ShieldCheck className="h-3 w-3" />
-                              Verified
+                              Verified Lawyer
                             </Badge>
                           )}
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                            <Briefcase className="h-3 w-3 mr-1" />
+                            {lawyer.experience} years experience
+                          </Badge>
                         </div>
-                        <div className="flex flex-wrap gap-2 mt-1">
+
+                        <div className="flex flex-wrap gap-2 mt-2">
                           {(lawyer.specialization || []).map((spec, i) => (
-                            <Badge key={i} variant="outline" className="text-sm">
+                            <Badge key={i} variant="outline" className="text-sm bg-primary/10 text-primary">
                               {spec}
                             </Badge>
                           ))}
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{(lawyer?.averageRating ?? 0).toFixed(1)}</span>
-                          <span className="text-muted-foreground">({lawyer?.totalReviews ?? 0} reviews)</span>
-                          <span className="text-muted-foreground">•</span>
-                          <div className="flex items-center gap-1 text-muted-foreground">
+
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="font-medium">{(lawyer?.averageRating ?? 0).toFixed(1)}</span>
+                            <span className="text-muted-foreground text-sm">({lawyer?.totalReviews ?? 0} reviews)</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 text-muted-foreground text-sm">
                             <MapPin className="h-4 w-4" />
                             <span>{lawyer.city}, {lawyer.state}</span>
                           </div>
+
+                          <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                            <Languages className="h-4 w-4" />
+                            <span>{lawyer.languagesSpoken?.join(", ") || "English"}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="border rounded-lg p-3">
-                          <p className="text-sm font-medium text-muted-foreground">Experience</p>
-                          <p className="text-lg font-semibold">{lawyer.experience} years</p>
+
+                      {/* Key Metrics - Enhanced */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="border rounded-lg p-3 bg-white shadow-sm hover:shadow transition-shadow">
+                          <p className="text-xs font-medium text-muted-foreground">Consultation Fee</p>
+                          <p className="text-lg font-semibold text-primary">₹{lawyer.consultationFee}</p>
+                          <p className="text-xs text-muted-foreground">per session</p>
                         </div>
-                        <div className="border rounded-lg p-3">
-                          <p className="text-sm font-medium text-muted-foreground">Consultation Fee</p>
-                          <p className="text-lg font-semibold">₹{lawyer.consultationFee}</p>
+                        <div className="border rounded-lg p-3 bg-white shadow-sm hover:shadow transition-shadow">
+                          <p className="text-xs font-medium text-muted-foreground">Cases Handled</p>
+                          <p className="text-lg font-semibold">{lawyer.consultationCount}+</p>
+                          <p className="text-xs text-muted-foreground">successful cases</p>
                         </div>
-                        <div className="border rounded-lg p-3">
-                          <p className="text-sm font-medium text-muted-foreground">Cases Handled</p>
-                          <p className="text-lg font-semibold">{lawyer.consultationCount}</p>
-                        </div>
-                        <div className="border rounded-lg p-3">
-                          <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+                        <div className="border rounded-lg p-3 bg-white shadow-sm hover:shadow transition-shadow">
+                          <p className="text-xs font-medium text-muted-foreground">Success Rate</p>
                           <p className="text-lg font-semibold">{stats.successRate}%</p>
+                          <p className="text-xs text-muted-foreground">positive outcomes</p>
+                        </div>
+                        <div className="border rounded-lg p-3 bg-white shadow-sm hover:shadow transition-shadow">
+                          <p className="text-xs font-medium text-muted-foreground">Response Time</p>
+                          <p className="text-lg font-semibold">1h</p>
+                          <p className="text-xs text-muted-foreground">average</p>
                         </div>
                       </div>
                     </div>
@@ -398,142 +421,189 @@ export default function LawyerProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* Stats Overview */}
-              {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                  title="Profile Views"
-                  value={lawyer.profileViews}
-                  icon={<User className="h-5 w-5 text-primary" />}
-                  change={stats.monthlyGrowth}
-                  description="from last month"
-                />
-                <StatCard
-                  title="Total Earnings"
-                  value={`₹${stats.totalEarnings}`}
-                  icon={<DollarSign className="h-5 w-5 text-primary" />}
-                  description={`₹${stats.thisMonthEarnings} this month`}
-                />
-                <StatCard
-                  title="Avg. Rating"
-                  value={lawyer?.averageRating ?? 0}
-                  icon={<Star className="h-5 w-5 text-primary" />}
-                  change={stats.ratingGrowth}
-                  description="from last month"
-                />
-                <StatCard
-                  title="Total Cases"
-                  value={lawyer.consultationCount}
-                  icon={<Briefcase className="h-5 w-5 text-primary" />}
-                  change={stats.caseGrowth}
-                  description="from last month"
-                />
-              </div> */}
-
+              {/* Two Column Layout - Enhanced */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Professional Details Card */}
+                {/* Professional Details Card - Enhanced */}
                 <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Professional Details</CardTitle>
+                  <CardHeader className="border-b">
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                      Professional Details
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Bar Council ID</p>
-                        <p className="text-sm font-medium">{lawyer.barCouncilId}</p>
+                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Bar Council ID
+                        </Label>
+                        <p className="font-medium">{lawyer.barCouncilId}</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Consultation Fee</p>
-                        <p className="text-sm font-medium">₹{lawyer.consultationFee}</p>
+
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Consultation Fee
+                        </Label>
+                        <p className="font-medium">₹{lawyer.consultationFee} per session</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Location</p>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm font-medium">{lawyer.city}, {lawyer.state}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Languages</p>
-                        <div className="flex items-center gap-1">
-                          <Languages className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm font-medium">
-                            {lawyer?.languagesSpoken?.length > 0 ? lawyer.languagesSpoken.join(", ") : "Not specified"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">Consultation Modes</p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {lawyer?.consultationModes?.video && <ConsultationModeBadge mode="video" />}
-                        {lawyer?.consultationModes?.call && <ConsultationModeBadge mode="call" />}
-                        {lawyer?.consultationModes?.chat && <ConsultationModeBadge mode="chat" />}
-                        {lawyer?.consultationModes?.inPerson && <ConsultationModeBadge mode="inPerson" />}
+
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          Location
+                        </Label>
+                        <p className="font-medium">{lawyer.city}, {lawyer.state}</p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">Contact</p>
-                      <p className="text-sm font-medium">{lawyer?.email || "Not specified"}</p>
-                      <p className="text-sm font-medium">{lawyer?.phone || "Not specified"}</p>
+
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Experience
+                        </Label>
+                        <p className="font-medium">{lawyer.experience} years</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <Languages className="h-4 w-4" />
+                          Languages
+                        </Label>
+                        <p className="font-medium">
+                          {lawyer?.languagesSpoken?.length > 0 ? lawyer.languagesSpoken.join(", ") : "English"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          Contact
+                        </Label>
+                        <p className="font-medium">{lawyer?.email || "Not specified"}</p>
+                        <p className="font-medium">{lawyer?.phone || "Not specified"}</p>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Consultation Modes
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                          {lawyer?.consultationModes?.video && (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                              <Video className="h-3 w-3 mr-1" />
+                              Video Call
+                            </Badge>
+                          )}
+                          {lawyer?.consultationModes?.call && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                              <Phone className="h-3 w-3 mr-1" />
+                              Phone Call
+                            </Badge>
+                          )}
+                          {lawyer?.consultationModes?.chat && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              Chat
+                            </Badge>
+                          )}
+                          {lawyer?.consultationModes?.inPerson && (
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              In-Person
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* About Me Card */}
+                {/* About Me Card - Enhanced */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>About Me</CardTitle>
+                  <CardHeader className="border-b">
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      About Me
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-6">
                     {profileData.bio ? (
-                      <p className="text-sm text-muted-foreground">{profileData.bio}</p>
+                      <div className="prose prose-sm max-w-none">
+                        <p className="text-gray-700">{profileData.bio}</p>
+                      </div>
                     ) : (
                       <div className="text-center py-8">
-                        <FileText className="mx-auto h-8 w-8 text-gray-400" />
-                        <p className="mt-2 text-sm text-muted-foreground italic">
-                          No bio added yet. Add a professional bio to help clients understand your expertise.
+                        <FileText className="mx-auto h-10 w-10 text-gray-400" />
+                        <h3 className="mt-4 text-lg font-medium text-gray-900">No bio added yet</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Add a professional bio to help clients understand your expertise and approach.
                         </p>
+                        {/* <Button variant="outline" className="mt-4" onClick={() => setIsEditing(true)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Add Bio
+                        </Button> */}
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Performance Metrics */}
-              {/* <Card>
+              {/* Client Satisfaction Section - Enhanced */}
+              <Card>
                 <CardHeader>
-                  <CardTitle>Performance Metrics</CardTitle>
-                  <CardDescription>Key indicators of your professional performance</CardDescription>
+                  <CardTitle>Client Satisfaction</CardTitle>
+                  <CardDescription>Key metrics that showcase your professional performance</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Client Satisfaction</span>
-                        <span className="text-sm font-medium">{stats.clientSatisfaction}%</span>
+                        <div className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <span className="text-sm font-medium">Client Rating</span>
+                        </div>
+                        <span className="text-sm font-medium">{lawyer.averageRating?.toFixed(1)}/5</span>
                       </div>
-                      <Progress value={stats.clientSatisfaction} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Based on client feedback and ratings</p>
+                      <div className="flex items-center gap-2">
+                        <Progress value={lawyer.averageRating ? lawyer.averageRating * 20 : 0} className="h-2 flex-1" />
+                        <span className="text-xs text-muted-foreground">
+                          {lawyer.totalReviews} reviews
+                        </span>
+                      </div>
                     </div>
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Response Rate</span>
-                        <span className="text-sm font-medium">{stats.responseRate}%</span>
-                      </div>
-                      <Progress value={stats.responseRate} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Timely responses to client inquiries</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Case Success Rate</span>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-sm font-medium">Success Rate</span>
+                        </div>
                         <span className="text-sm font-medium">{stats.successRate}%</span>
                       </div>
                       <Progress value={stats.successRate} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Positive outcomes for your clients</p>
+                      <p className="text-xs text-muted-foreground">Positive case outcomes</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="text-sm font-medium">Response Rate</span>
+                        </div>
+                        <span className="text-sm font-medium">{stats.responseRate}%</span>
+                      </div>
+                      <Progress value={stats.responseRate} className="h-2" />
+                      <p className="text-xs text-muted-foreground">Timely client responses</p>
                     </div>
                   </div>
                 </CardContent>
-              </Card> */}
+              </Card>
             </TabsContent>
 
             {/* Edit Profile Tab */}
