@@ -9,6 +9,8 @@ import { Calendar, User, Scale, Settings, LogOut, Menu, Bell, Search, Sparkles }
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useNotifications } from "@/hooks/useNotifications"
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, userType, user }: DashboardLayoutProps) {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
   const router = useRouter()
 
   const userNavItems = [
@@ -52,6 +55,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
     { href: "/lawyer/settings", label: "Settings", icon: Settings },
   ]
 
+  const { unreadCount, notifications, loading } = useNotifications()
   const navItems = userType === "user" ? userNavItems : lawyerNavItems
 
   const NavContent = () => (
@@ -172,16 +176,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
               </div>
 
               <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative text-white hover:bg-white/10 border border-white/10"
-                >
-                  <Bell className="h-5 w-5" />
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-gradient-to-r from-red-500 to-pink-500 border-0">
-                    10
-                  </Badge>
-                </Button>
+                <NotificationDropdown />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
