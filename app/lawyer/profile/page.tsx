@@ -719,9 +719,9 @@ export default function LawyerProfilePage() {
                         </p>
                         <Progress value={lawyer.profileCompletedPercentage} className="h-2 mt-1 w-48" />
                       </div>
-                      <Button type="submit" disabled={updating}>
+                      {/* <Button type="submit" disabled={updating}>
                         {updating ? "Updating..." : "Update Profile"}
-                      </Button>
+                      </Button> */}
                     </div>
                   </form>
                 </CardContent>

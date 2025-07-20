@@ -153,11 +153,9 @@ export default function LawyerSettingsPage() {
       const currentDaySlots = timeSlotsToSend.find(d => d.day === day)?.slots || [];
 
       await lawyerApi.setAvailability({
-        timeSlots: [{
-          day,
-          slots: currentDaySlots
-        }]
+        timeSlots: timeSlotsToSend
       });
+
 
       toast({
         title: "Saved",
@@ -189,47 +187,49 @@ export default function LawyerSettingsPage() {
   };
 
   const handleRemoveSlot = async (day: string, index: number) => {
-    // Update local state first
-    setAvailability(prev =>
-      prev.map(d =>
-        d.day === day
-          ? { ...d, slots: d.slots.filter((_, i) => i !== index) }
-          : d
-      ).filter(d => d.slots.length > 0)
-    );
+    // First update local state and get new version
+    const updatedAvailability = availability.map(d =>
+      d.day === day
+        ? { ...d, slots: d.slots.filter((_, i) => i !== index) }
+        : d
+    ).filter(d => d.slots.length > 0);
 
-    // Get remaining valid slots for this day
-    const daySlots = availability.find(d => d.day === day)?.slots || [];
+    setAvailability(updatedAvailability);
+
+    // Use the updated availability, not the stale one
+    const daySlots = updatedAvailability.find(d => d.day === day)?.slots || [];
+
     const validSlots = daySlots
-      .filter((_, i) => i !== index) // Remove the deleted slot
       .filter(slot => slot.includes('-'))
       .filter(slot => {
         const [s, e] = slot.split('-');
         return s && e && s < e;
       });
 
-    // Update API
     try {
       await lawyerApi.setAvailability({
-        timeSlots: [{
-          day,
-          slots: validSlots.length > 0 ? validSlots : []
-        }]
+        timeSlots: [
+          {
+            day,
+            slots: validSlots.length > 0 ? validSlots : [],
+          },
+        ],
       });
 
       toast({
         title: "Updated",
         description: `Time slots updated for ${day}`,
-        duration: 2000
+        duration: 2000,
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update time slots",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
+
 
   const handleSlotChange = (day: string, index: number, value: string) => {
     setAvailability(prev =>
@@ -375,24 +375,26 @@ export default function LawyerSettingsPage() {
           </div>
 
           <Tabs defaultValue="professional" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="professional">
-                <Briefcase className="w-4 h-4 mr-2" />
-                Professional
-              </TabsTrigger>
-              <TabsTrigger value="availability">
-                <Clock className="w-4 h-4 mr-2" />
-                Availability
-              </TabsTrigger>
-              <TabsTrigger value="security">
-                <Shield className="w-4 h-4 mr-2" />
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="payments">
-                <DollarSign className="w-4 h-4 mr-2" />
-                Payments
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-4 px-4">
+              <TabsList className="flex w-max">
+                <TabsTrigger value="professional">
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Professional
+                </TabsTrigger>
+                <TabsTrigger value="availability">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Availability
+                </TabsTrigger>
+                <TabsTrigger value="security">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="payments">
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Payments
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Professional Tab */}
             <TabsContent value="professional" className="space-y-4">
@@ -520,20 +522,23 @@ export default function LawyerSettingsPage() {
                                     </Select>
                                   </div>
 
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => handleRemoveSlot(day, index)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleRemoveSlot(day, index)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
 
-                                  {isComplete && (
-                                    <Badge variant="outline" className="ml-2">
-                                      Saved
-                                    </Badge>
-                                  )}
+                                    {isComplete && (
+                                      <Badge variant="outline" className="text-xs px-2 py-0.5">
+                                        Saved
+                                      </Badge>
+                                    )}
+                                  </div>
+
                                 </div>
                               );
                             })}

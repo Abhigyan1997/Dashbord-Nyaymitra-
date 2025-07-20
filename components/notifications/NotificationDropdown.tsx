@@ -18,24 +18,23 @@ export const NotificationDropdown = () => {
     const { notifications, unreadCount, loading } = useNotifications()
 
     const formatMessage = (message: string) => {
-        const dateMatch = message.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)
-        if (!dateMatch) return message
+        // Match the ISO date string
+        const dateMatch = message.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+        if (!dateMatch) return message;
 
-        const rawDate = new Date(dateMatch[0])
+        // Parse the date, adjusting to local time
+        const rawDate = new Date(dateMatch[0]);
+
+        // Format the date only (exclude time!)
         const formattedDate = rawDate.toLocaleDateString("en-IN", {
             year: "numeric",
             month: "short",
             day: "numeric",
-        })
-        const formattedTime = rawDate.toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        })
+        });
 
-        // Replace ISO string in message with formatted one
-        return message.replace(dateMatch[0], `${formattedDate} at ${formattedTime}`)
-    }
+        // Replace ISO date with formatted one
+        return message.replace(dateMatch[0], formattedDate);
+    };
 
     return (
         <DropdownMenu>

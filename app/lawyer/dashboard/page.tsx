@@ -336,7 +336,7 @@ export default function LawyerDashboard() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-slate-400">Lawyer ID</p>
-                      <p className="text-white font-medium">{lawyer?.id || "N/A"}</p>
+                      <p className="text-white font-medium">{lawyer?.userId || "N/A"}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-slate-400">Account Type</p>
