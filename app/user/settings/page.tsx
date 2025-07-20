@@ -181,7 +181,7 @@ export default function UserSettingsPage() {
     setLoading(true);
     try {
       const token = authUtils.getToken(); // get from localStorage/cookie
-      const res = await fetch("http://localhost:5000/api/v1/auth/change-password", {
+      const res = await fetch("https://nyaymitra-backend-production.up.railway.app/api/v1/auth/change-password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

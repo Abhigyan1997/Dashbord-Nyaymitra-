@@ -664,8 +664,11 @@ export default function LawyerProfilePage() {
                         <Input
                           id="consultationFee"
                           type="number"
-                          value={profileData.consultationFee}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, consultationFee: Number(e.target.value) }))}
+                          value={profileData.consultationFee || ""}
+                          onChange={(e) => setProfileData((prev) => ({
+                            ...prev,
+                            consultationFee: e.target.value === "" ? 0 : Number(e.target.value)
+                          }))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -713,15 +716,19 @@ export default function LawyerProfilePage() {
                       />
                     </div>
                     <div className="flex justify-between items-center">
-                      <div>
+                      {/* <div>
                         <p className="text-sm text-muted-foreground">
                           Profile completion: {lawyer.profileCompletedPercentage}%
                         </p>
                         <Progress value={lawyer.profileCompletedPercentage} className="h-2 mt-1 w-48" />
-                      </div>
-                      {/* <Button type="submit" disabled={updating}>
+                      </div> */}
+                      <Button
+                        type="submit"
+                        disabled={updating}
+                        className="w-full sm:w-auto" // Full width on mobile, auto on larger screens
+                      >
                         {updating ? "Updating..." : "Update Profile"}
-                      </Button> */}
+                      </Button>
                     </div>
                   </form>
                 </CardContent>
