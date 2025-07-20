@@ -69,7 +69,7 @@ export function LoginForm() {
     setError("");
 
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/forgot-password', {
+      const response = await fetch('https://nyaymitra-backend-production.up.railway.app/api/v1/auth/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
