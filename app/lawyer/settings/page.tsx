@@ -411,11 +411,15 @@ export default function LawyerSettingsPage() {
                         <Input
                           id="consultationFee"
                           type="number"
-                          value={professionalData.consultationFee}
-                          onChange={(e) => setProfessionalData(prev => ({
-                            ...prev,
-                            consultationFee: Number(e.target.value)
-                          }))}
+                          value={professionalData.consultationFee === 0 ? "" : professionalData.consultationFee}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setProfessionalData(prev => ({
+                              ...prev,
+                              consultationFee: value === "" ? 0 : Number(value)
+                            }));
+                          }}
+                          min="0"
                         />
                       </div>
                       <div className="space-y-2">
