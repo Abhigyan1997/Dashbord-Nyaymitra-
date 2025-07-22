@@ -106,18 +106,23 @@ export default function LawyerConsultationsPage() {
         setBookings(bookingsWithAvatars)
         setTotalPages(Math.ceil(bookingsWithAvatars.length / ITEMS_PER_PAGE))
       }
-    } catch (error) {
-      console.error("Error loading bookings:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load consultations. Please try again.",
-      })
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        // Handle 404 by setting empty bookings
+        setBookings([])
+        setTotalPages(1)
+      } else {
+        console.error("Error loading bookings:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load consultations. Please try again.",
+        })
+      }
     } finally {
       setLoading(false)
     }
   }
-
   const handleViewDetails = async (bookingId: string) => {
     setLoadingDetails(true)
     try {
@@ -780,7 +785,7 @@ export default function LawyerConsultationsPage() {
                     <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
                     <h3 className="mt-4 text-lg font-semibold">No consultations found</h3>
                     <p className="text-muted-foreground">Your upcoming consultations will appear here</p>
-                    <Button className="mt-4">Schedule Availability</Button>
+                    {/* <Button className="mt-4">Schedule Availability</Button> */}
                   </CardContent>
                 </Card>
               ) : (

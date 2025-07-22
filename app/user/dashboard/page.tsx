@@ -58,48 +58,60 @@ export default function UserDashboard() {
       setUser(userProfile)
 
       if (userProfile.userId) {
-        // Fetch upcoming consultations from the new endpoint
-        const upcomingResponse = await userApi.getUpcomingConsultations(userProfile.userId)
-        const upcomingConsultations = upcomingResponse.data.consultations || []
+        let allBookings: Booking[] = []
 
-        // Transform the upcoming consultations data to match our Booking interface
-        const transformedUpcoming = upcomingConsultations.map((consultation: any) => ({
-          _id: consultation._id,
-          id: consultation._id,
-          lawyerName: consultation.lawyerDetails?.fullName || "Unknown Lawyer",
-          lawyerSpecialty: consultation.lawyerDetails?.specialization || "General Law",
-          date: new Date(consultation.date).toISOString().split('T')[0],
-          time: consultation.slot || "10:00 AM",
-          status: consultation.status === "confirmed" ? "upcoming" : "pending",
-          type: consultation.mode === "chat" ? "Video Call" :
-            consultation.mode === "call" ? "Phone Call" : "In-Person",
-          duration: "60 minutes", // Assuming slot is 1 hour
-          fee: `$${consultation.amount || 0}`,
-          amount: consultation.amount || 0,
-          description: "Legal consultation", // Default description
-        }))
+        // Try to get upcoming consultations
+        try {
+          const upcomingResponse = await userApi.getUpcomingConsultations(userProfile.userId)
+          const upcomingConsultations = upcomingResponse.data?.consultations || []
 
-        // Fetch other bookings (you might want to keep this or replace it)
-        const bookingsResponse = await userApi.getAllBookings(userProfile.userId, 1, 100)
-        const otherBookingsData = bookingsResponse.data.orders || bookingsResponse.data.bookings || []
+          const transformedUpcoming = upcomingConsultations.map((consultation: any) => ({
+            _id: consultation._id,
+            id: consultation._id,
+            lawyerName: consultation.lawyerDetails?.fullName || "Unknown Lawyer",
+            lawyerSpecialty: consultation.lawyerDetails?.specialization || "General Law",
+            date: new Date(consultation.date).toISOString().split('T')[0],
+            time: consultation.slot || "10:00 AM",
+            status: consultation.status === "confirmed" ? "upcoming" : "pending",
+            type: consultation.mode === "chat" ? "Video Call" :
+              consultation.mode === "call" ? "Phone Call" : "In-Person",
+            duration: "60 minutes",
+            fee: `$${consultation.amount || 0}`,
+            amount: consultation.amount || 0,
+            description: "Legal consultation",
+          }))
 
-        const transformedOtherBookings = otherBookingsData.map((booking: any) => ({
-          _id: booking._id || booking.id,
-          id: booking._id || booking.id,
-          lawyerName: booking.lawyerName || booking.lawyer?.name || "Unknown Lawyer",
-          lawyerSpecialty: booking.lawyerSpecialty || booking.lawyer?.specialty || "General Law",
-          date: booking.date || booking.scheduledDate || new Date().toISOString().split('T')[0],
-          time: booking.time || booking.scheduledTime || "10:00 AM",
-          status: booking.status || "pending",
-          type: booking.type || booking.consultationType || "Video Call",
-          duration: booking.duration || "30 minutes",
-          fee: booking.fee || `$${booking.amount || 150}`,
-          amount: booking.amount || 150,
-          description: booking.description || booking.problemDescription,
-        }))
+          allBookings = [...allBookings, ...transformedUpcoming]
+        } catch (upcomingError) {
+          console.log("No upcoming consultations found or error fetching them")
+        }
 
-        // Combine both sets of bookings
-        setBookings([...transformedUpcoming, ...transformedOtherBookings])
+        // Try to get all bookings
+        try {
+          const bookingsResponse = await userApi.getAllBookings(userProfile.userId, 1, 100)
+          const otherBookingsData = bookingsResponse.data?.orders || bookingsResponse.data?.bookings || []
+
+          const transformedOtherBookings = otherBookingsData.map((booking: any) => ({
+            _id: booking._id || booking.id,
+            id: booking._id || booking.id,
+            lawyerName: booking.lawyerName || booking.lawyer?.name || "Unknown Lawyer",
+            lawyerSpecialty: booking.lawyerSpecialty || booking.lawyer?.specialty || "General Law",
+            date: booking.date || booking.scheduledDate || new Date().toISOString().split('T')[0],
+            time: booking.time || booking.scheduledTime || "10:00 AM",
+            status: booking.status || "pending",
+            type: booking.type || booking.consultationType || "Video Call",
+            duration: booking.duration || "30 minutes",
+            fee: booking.fee || `$${booking.amount || 150}`,
+            amount: booking.amount || 150,
+            description: booking.description || booking.problemDescription,
+          }))
+
+          allBookings = [...allBookings, ...transformedOtherBookings]
+        } catch (bookingsError) {
+          console.log("No other bookings found or error fetching them")
+        }
+
+        setBookings(allBookings)
       } else {
         throw new Error("User ID not found in profile")
       }
@@ -110,6 +122,8 @@ export default function UserDashboard() {
       setLoading(false)
     }
   }
+
+  // ... rest of your component code remains the same ...
 
   const handleCancelBooking = async (bookingId: string) => {
     try {

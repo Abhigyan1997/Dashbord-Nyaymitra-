@@ -21,6 +21,13 @@ import { lawyerApi } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import { ConsultationModeBadge } from "@/components/consultation-mode-badge";
 import { DocumentUploadCard } from "@/components/document-upload-card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 
 interface LawyerProfile {
@@ -59,6 +66,7 @@ interface LawyerProfile {
   };
   verificationRejectionReason?: string;
   joinedDate: string;
+  gender: string;
 }
 
 interface Review {
@@ -120,6 +128,7 @@ export default function LawyerProfilePage() {
     languagesSpoken: [""],
     consultationFee: 0,
     bio: "",
+    gender: "",
   });
 
   // Calculate stats based on profile data
@@ -158,6 +167,7 @@ export default function LawyerProfilePage() {
           languagesSpoken: profileRes.data.languagesSpoken,
           consultationFee: profileRes.data.consultationFee,
           bio: profileRes.data.bio || "",
+          gender: profileRes.data.gender || ""
         });
       } catch (err) {
         setError("Failed to fetch profile data");
@@ -703,6 +713,22 @@ export default function LawyerProfilePage() {
                           value={profileData.state}
                           onChange={(e) => setProfileData((prev) => ({ ...prev, state: e.target.value }))}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select
+                          value={profileData.gender}
+                          onValueChange={(value) => setProfileData(prev => ({ ...prev, gender: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <div className="space-y-2">
