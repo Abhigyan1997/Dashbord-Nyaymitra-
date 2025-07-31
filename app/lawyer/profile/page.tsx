@@ -116,6 +116,51 @@ export default function LawyerProfilePage() {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const backendUrl = "http://localhost:5000";
+
+  const handleAvatarUpload = async (file: File) => {
+    setUploadingAvatar(true);
+    try {
+      const token = localStorage.getItem("token"); // or whatever key you stored it under
+
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await lawyerApi.uploadAvatar(formData, token);
+
+      setLawyer(prev => prev ? { ...prev, avatar: response.data.url } : null);
+      setAvatarPreview(null); // Clear preview after successful upload
+
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [profileData, setProfileData] = useState({
     fullName: "",
     email: "",
@@ -618,6 +663,62 @@ export default function LawyerProfilePage() {
 
             {/* Edit Profile Tab */}
             <TabsContent value="edit" className="space-y-4">
+              {/* Add this at the top of the edit form, before the grid */}
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={lawyer.avatar ? `${backendUrl}${lawyer.avatar}` : "/placeholder-lawyer.svg"} />
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-secondary text-white">
+                      {lawyer.fullName.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2 text-center">
+                  <Label htmlFor="avatar-upload" className="cursor-pointer">
+                    <Button variant="outline" asChild>
+                      <span>
+                        <Camera className="mr-2 h-4 w-4" />
+                        {avatarPreview ? "Change Photo" : "Upload Photo"}
+                      </span>
+                    </Button>
+                  </Label>
+                  <Input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                    disabled={uploadingAvatar}
+                  />
+                  {avatarPreview && (
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        size="sm"
+                        onClick={() => handleAvatarUpload((document.getElementById('avatar-upload') as HTMLInputElement).files![0])}
+                        disabled={uploadingAvatar}
+                      >
+                        {uploadingAvatar ? "Uploading..." : "Save Photo"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAvatarPreview(null)}
+                        disabled={uploadingAvatar}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG up to 2MB
+                  </p>
+                </div>
+              </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Edit Profile Information</CardTitle>

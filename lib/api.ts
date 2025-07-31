@@ -2,7 +2,7 @@ import axios from "axios"
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: "https://nyaymitra-backend-production.up.railway.app/api/v1",
+  baseURL: "http://localhost:5000/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -87,6 +87,16 @@ export const lawyerApi = {
   resubmitVerification: () => axios.post('/lawyer/verification/resubmit'),
   setAvailability: (data: { timeSlots: Array<{ day: string; slots: string[] }> }) =>
     api.put('/lawyer/availablity', data),
+  uploadAvatar: (formData: FormData, token: string | null) => {
+    return api.post('/auth/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    });
+  }
+
+
 }
 
 
