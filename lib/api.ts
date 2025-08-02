@@ -20,21 +20,10 @@ api.interceptors.request.use((config) => {
 // Auth API endpoints
 export const authApi = {
   login: (credentials: { email: string; password: string; userType: string }) =>
-    api.post("/auth/login", credentials, {
-      withCredentials: true, // ⬅️ Send cookie with request
-    }),
-
-  getProfile: () =>
-    api.get("/auth/profile", {
-      withCredentials: true, // ⬅️ Needed so cookie is sent
-    }),
-
-  updateProfile: (data: any) =>
-    api.patch("/auth/profile", data, {
-      withCredentials: true,
-    }),
-};
-
+    api.post("/auth/login", credentials),
+  getProfile: () => api.get("/auth/profile"),
+  updateProfile: (data: any) => api.patch("/auth/profile", data),
+}
 
 // Common API endpoints
 export const commonApi = {
