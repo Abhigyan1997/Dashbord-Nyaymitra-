@@ -2,7 +2,7 @@ import axios from "axios"
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: "http://nyaymitra-backend-production.up.railway.app/api/v1",
+  baseURL: "https://nyaymitra-backend-production.up.railway.app/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
