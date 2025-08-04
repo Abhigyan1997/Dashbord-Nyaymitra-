@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Clock, MapPin, Phone, Video, Search, Filter, CheckCircle, FileText, User, DollarSign, AlertCircle, ChevronLeft, ChevronRight, X, Clipboard, Mail, Download } from "lucide-react"
+import { Calendar, Star, Clock, MapPin, Phone, Video, Search, Filter, CheckCircle, FileText, User, DollarSign, AlertCircle, ChevronLeft, ChevronRight, X, Clipboard, Mail, Download } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 
+interface Review {
+  _id: string;
+  userId: string;
+  lawyerId: string;
+  consultationId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 interface Booking {
   _id: string;
   userId: string;
@@ -52,6 +62,7 @@ interface Booking {
   userAvatar?: string;
   caseDetails?: string;
   additionalNotes?: string;
+  review?: Review;
 }
 
 interface ApiResponse {
@@ -94,35 +105,57 @@ export default function LawyerConsultationsPage() {
     }
   }, [])
 
-  const loadBookings = async (lawyerUserId: string) => {
-    setLoading(true)
+  const fetchReviews = async (lawyerId: string) => {
     try {
-      const response: AxiosResponse<ApiResponse> = await lawyerApi.getAllBookings(lawyerUserId)
-      if (response.data.success) {
-        const bookingsWithAvatars = response.data.bookings.map(booking => ({
-          ...booking,
-          userAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${booking.userName.replace(/\s+/g, '')}`
-        }))
-        setBookings(bookingsWithAvatars)
-        setTotalPages(Math.ceil(bookingsWithAvatars.length / ITEMS_PER_PAGE))
+      const response = await lawyerApi.getLawyerReviews(lawyerId);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      return [];
+    }
+  };
+
+  const loadBookings = async (lawyerUserId: string) => {
+    setLoading(true);
+    try {
+      // Fetch both bookings and reviews in parallel
+      const [bookingsResponse, reviewsResponse] = await Promise.all([
+        lawyerApi.getAllBookings(lawyerUserId),
+        lawyerApi.getLawyerReviews(lawyerUserId)
+      ]);
+
+      if (bookingsResponse.data.success) {
+        const bookingsWithAvatarsAndReviews = bookingsResponse.data.bookings.map((booking: Booking) => {
+          // Find the review for this booking (if exists)
+          const review = reviewsResponse.data?.find((r: Review) => r.consultationId === booking._id);
+
+          return {
+            ...booking,
+            userAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${booking.userName.replace(/\s+/g, '')}`,
+            review: review || undefined
+          };
+        });
+
+        setBookings(bookingsWithAvatarsAndReviews);
+        setTotalPages(Math.ceil(bookingsWithAvatarsAndReviews.length / ITEMS_PER_PAGE));
       }
     } catch (error: any) {
       if (error.response?.status === 404) {
         // Handle 404 by setting empty bookings
-        setBookings([])
-        setTotalPages(1)
+        setBookings([]);
+        setTotalPages(1);
       } else {
-        console.error("Error loading bookings:", error)
+        console.error("Error loading bookings:", error);
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to load consultations. Please try again.",
-        })
+        });
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
   const handleViewDetails = async (bookingId: string) => {
     setLoadingDetails(true)
     try {
@@ -253,149 +286,184 @@ export default function LawyerConsultationsPage() {
     }
   }
 
-  const ConsultationCard = ({ booking }: { booking: Booking }) => (
-    <Card key={booking._id} className="hover:shadow-md transition-shadow border-0 shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-          <div className="flex-1 space-y-4">
-            <div className="flex items-start gap-4">
-              <Avatar className="h-12 w-12 border">
-                <AvatarImage src={booking.userAvatar} />
-                <AvatarFallback>{booking.userName.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-lg">{booking.userName}</h4>
-                  {getStatusBadge(booking.status)}
-                </div>
-                <p className="text-sm text-muted-foreground">Booking ID: {booking._id}</p>
+  const ConsultationCard = ({ booking }: { booking: Booking }) => {
+    const renderReviewSection = () => {
+      if (!booking.review) return null;
 
-                {booking.caseDetails && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="text-sm text-muted-foreground line-clamp-1">
-                          <FileText className="inline h-3 w-3 mr-1" />
-                          {booking.caseDetails}
-                        </p>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="max-w-xs">{booking.caseDetails}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-            </div>
-
-            <Separator className="my-3" />
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground flex items-center">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Date
-                </p>
-                <p className="font-medium">{formatDate(booking.date)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Time
-                </p>
-                <p className="font-medium">{formatTime(booking.slot)}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground flex items-center">
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Fee
-                </p>
-                <p className="font-medium">₹{booking.amount}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground flex items-center">
-                  {getTypeIcon(booking.mode)}
-                  Mode
-                </p>
-                <Badge className={`${getModeColor(booking.mode)} hover:${getModeColor(booking.mode)}`}>
-                  {getModeLabel(booking.mode)}
-                </Badge>
-              </div>
-            </div>
+      return (
+        <div className="mt-3 p-3 bg-gray-50 rounded-md">
+          <div className="flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i < (booking.review?.rating ?? 0)
+                  ? 'text-yellow-400 fill-yellow-400'
+                  : 'text-gray-300'
+                  }`}
+              />
+            ))}
+            <span className="ml-1 text-sm font-medium">
+              {booking.review?.rating}/5
+            </span>
           </div>
-
-          <div className="flex flex-col gap-2 lg:min-w-[180px]">
-            {booking.status === "confirmed" && (
-              <>
-                {/* <Button size="sm" className="w-full">
-                  {booking.mode === "video" && <Video className="mr-2 h-4 w-4" />}
-                  {booking.mode === "call" && <Phone className="mr-2 h-4 w-4" />}
-                  {booking.mode === "inPerson" && <MapPin className="mr-2 h-4 w-4" />}
-                  Start Session
-                </Button> */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCompleteConsultation(booking._id)}
-                  disabled={completingId === booking._id}
-                  className="w-full"
-                >
-                  {completingId === booking._id ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Mark Complete
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-            {booking.status === "completed" && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-600">Completed on {formatDate(booking.updatedAt)}</span>
-                </div>
-                {booking.documents.length > 0 && (
-                  <Button variant="outline" size="sm" className="w-full">
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Documents ({booking.documents.length})
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" className="w-full">
-                  Send Invoice
-                </Button>
-              </div>
-            )}
-            {booking.status === "cancelled" && (
-              <div className="text-center space-y-2">
-                <div className="flex items-center justify-center gap-2 text-red-500">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="text-sm">Cancelled</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleViewDetails(booking._id)}
-                  disabled={loadingDetails}
-                >
-                  {loadingDetails ? "Loading..." : "View Details"}
-                </Button>
-              </div>
-            )}
-          </div>
+          <p className="mt-1 text-sm text-gray-700">
+            {booking.review?.comment}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Reviewed on {booking.review?.createdAt && formatDate(booking.review.createdAt)}
+          </p>
         </div>
-      </CardContent>
-    </Card>
-  )
+      );
+    };
+
+    const renderActionButtons = () => {
+      switch (booking.status) {
+        case "confirmed":
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleCompleteConsultation(booking._id)}
+              disabled={completingId === booking._id}
+              className="w-full"
+            >
+              {completingId === booking._id ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Mark Complete
+                </>
+              )}
+            </Button>
+          );
+        case "completed":
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm text-green-600">Completed on {formatDate(booking.updatedAt)}</span>
+              </div>
+              {booking.documents.length > 0 && (
+                <Button variant="outline" size="sm" className="w-full">
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Documents ({booking.documents.length})
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" className="w-full">
+                Send Invoice
+              </Button>
+            </div>
+          );
+        case "cancelled":
+          return (
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-red-500">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Cancelled</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => handleViewDetails(booking._id)}
+                disabled={loadingDetails}
+              >
+                {loadingDetails ? "Loading..." : "View Details"}
+              </Button>
+            </div>
+          );
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <Card className="hover:shadow-md transition-shadow border-0 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-start gap-4">
+                <Avatar className="h-12 w-12 border">
+                  <AvatarImage src={booking.userAvatar} />
+                  <AvatarFallback>{booking.userName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-lg">{booking.userName}</h4>
+                    {getStatusBadge(booking.status)}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Booking ID: {booking._id}</p>
+
+                  {booking.caseDetails && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            <FileText className="inline h-3 w-3 mr-1" />
+                            {booking.caseDetails}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">{booking.caseDetails}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </div>
+
+              {renderReviewSection()}
+              <Separator className="my-3" />
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Date
+                  </p>
+                  <p className="font-medium">{formatDate(booking.date)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
+                    Time
+                  </p>
+                  <p className="font-medium">{formatTime(booking.slot)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Fee
+                  </p>
+                  <p className="font-medium">₹{booking.amount}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    {getTypeIcon(booking.mode)}
+                    Mode
+                  </p>
+                  <Badge className={`${getModeColor(booking.mode)} hover:${getModeColor(booking.mode)}`}>
+                    {getModeLabel(booking.mode)}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 lg:min-w-[180px]">
+              {renderActionButtons()}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {

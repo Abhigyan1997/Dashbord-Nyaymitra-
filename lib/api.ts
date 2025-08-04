@@ -94,8 +94,8 @@ export const lawyerApi = {
         'Authorization': token ? `Bearer ${token}` : ''
       }
     });
-  }
-
+  },
+  getLawyerReviews: (lawyerId: string) => api.get(`/reviews/${lawyerId}`),
 
 }
 
