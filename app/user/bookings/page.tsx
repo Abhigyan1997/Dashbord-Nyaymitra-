@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useState, useEffect } from "react"
-import { Calendar, Clock, MapPin, Phone, Video, Search, Filter, Plus } from "lucide-react"
+import { Calendar, Clock, MapPin, Phone, Video, Search, Filter, Plus, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,13 @@ import { jwtDecode } from "jwt-decode"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Booking {
   _id: string;
@@ -36,9 +43,8 @@ interface Booking {
 
 export default function UserBookingsPage() {
   const [page, setPage] = useState(1);
-  const limit = 5; // Number of bookings per page
+  const limit = 5;
   const [totalPages, setTotalPages] = useState(1);
-
   const [user, setUser] = useState(authUtils.getUser())
   const [bookings, setBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -46,6 +52,14 @@ export default function UserBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter();
+
+  // Review dialog state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null)
+  const [rating, setRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState("")
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState("")
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,20 +82,19 @@ export default function UserBookingsPage() {
     };
 
     loadData();
-  }, [page]); // <== page triggers new load
-
+  }, [page]);
 
   const loadBookings = async (userId: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await userApi.getAllBookings(userId, page, limit); // send page and limit
+      const response = await userApi.getAllBookings(userId, page, limit);
       if (!response.data.success) {
         throw new Error(response.data.message || "Failed to fetch bookings");
       }
 
       setBookings(response.data.bookings || []);
-      setTotalPages(response.data.totalPages || 1); // from backend
+      setTotalPages(response.data.totalPages || 1);
     } catch (err) {
       console.error("Error loading bookings:", err);
       setError("Failed to load bookings. Please try again later.");
@@ -89,7 +102,6 @@ export default function UserBookingsPage() {
       setLoading(false);
     }
   };
-
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
@@ -104,6 +116,55 @@ export default function UserBookingsPage() {
       setError("Failed to cancel booking. Please try again.")
     }
   }
+
+  const handleOpenReviewDialog = (booking: Booking) => {
+    setCurrentBooking(booking)
+    setReviewDialogOpen(true)
+  }
+
+  const handleSubmitReview = async () => {
+    if (!currentBooking) return;
+
+    setSubmittingReview(true);
+    setReviewError("");
+
+    try {
+      const response = await userApi.submitReview({
+        userId: currentBooking.userId,
+        lawyerId: currentBooking.lawyerId,
+        consultationId: currentBooking._id,
+        rating,
+        comment: reviewComment
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to submit review");
+      }
+
+      // Refresh bookings to reflect the review
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        const decoded: any = jwtDecode(token);
+        await loadBookings(decoded.userId);
+      }
+
+      setReviewDialogOpen(false);
+    } catch (err: any) {
+      console.error("Error submitting review:", err);
+
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        setReviewError("You have already submitted a review for this consultation.");
+      } else if (err.response?.data?.message) {
+        // Use the server-provided error message if available
+        setReviewError(err.response.data.message);
+      } else {
+        setReviewError(err instanceof Error ? err.message : "Failed to submit review");
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch = booking.lawyerName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -168,7 +229,7 @@ export default function UserBookingsPage() {
   }
 
   const formatTime = (timeString: string) => {
-    return timeString.replace(/:00$/, '') // Remove :00 if it's at the end
+    return timeString.replace(/:00$/, '')
   }
 
   const formatAmount = (amount: number) => {
@@ -235,7 +296,7 @@ export default function UserBookingsPage() {
                     size="sm"
                     className="rounded-full border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-600"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
+                      e.stopPropagation();
                       handleCancelBooking(booking._id);
                     }}
                   >
@@ -256,7 +317,15 @@ export default function UserBookingsPage() {
                   >
                     View Details
                   </Button>
-                  <Button variant="default" size="sm" className="rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenReviewDialog(booking);
+                    }}
+                  >
                     Leave Review
                   </Button>
                 </>
@@ -272,7 +341,6 @@ export default function UserBookingsPage() {
       </Card>
     )
   }
-
 
   if (loading) {
     return (
@@ -420,28 +488,6 @@ export default function UserBookingsPage() {
                 </div>
               )}
             </TabsContent>
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-4 mt-6">
-                <Button
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage((prev) => prev - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="flex items-center px-2 text-sm font-medium">
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((prev) => prev + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-
 
             <TabsContent value="upcoming" className="space-y-4">
               {upcomingBookings.length === 0 ? (
@@ -504,6 +550,79 @@ export default function UserBookingsPage() {
               )}
             </TabsContent>
           </Tabs>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-4 mt-6">
+              <Button
+                variant="outline"
+                disabled={page === 1}
+                onClick={() => setPage((prev) => prev - 1)}
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-2 text-sm font-medium">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                disabled={page === totalPages}
+                onClick={() => setPage((prev) => prev + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+
+          {/* Review Dialog */}
+          <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Leave a Review</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                {currentBooking && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">Rating:</p>
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-5 w-5 cursor-pointer ${rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            onClick={() => setRating(star)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <Textarea
+                      placeholder="Share your experience..."
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      className="min-h-[120px]"
+                    />
+                    {reviewError && (
+                      <p className="text-sm text-red-500">{reviewError}</p>
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setReviewDialogOpen(false)}
+                        disabled={submittingReview}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSubmitReview}
+                        disabled={submittingReview}
+                      >
+                        {submittingReview ? "Submitting..." : "Submit Review"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

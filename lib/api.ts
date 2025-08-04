@@ -56,7 +56,14 @@ export const userApi = {
   createPaymentOrder: (orderData: any) => api.post("/payment/create-order", orderData),
   verifyPayment: (paymentData: any) => api.post("/payment/verify", paymentData),
   getUserDetails: (userId: string) => api.get(`/auth/user/${userId}`),
-  getUpcomingConsultations: (userId: string) => api.get(`/auth/upcoming/${userId}`)
+  getUpcomingConsultations: (userId: string) => api.get(`/auth/upcoming/${userId}`),
+  submitReview: (reviewData: {
+    userId: string;
+    lawyerId: string;
+    consultationId: string;
+    rating: number;
+    comment: string;
+  }) => api.post("/reviews", reviewData)
 }
 
 // Lawyer API endpoints
