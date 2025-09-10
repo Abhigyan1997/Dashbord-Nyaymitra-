@@ -14,11 +14,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { mockUser } from "@/lib/mock-data"
 import { authUtils } from "@/lib/auth"
 
+// Create a compatible user object for DashboardLayout
+interface LayoutUser {
+  name: string
+  email: string
+  avatar?: string
+}
+
 export default function UserSettingsPage() {
-  const [user, setUser] = useState(mockUser)
+  const [user, setUser] = useState<LayoutUser | null>(null)
   const [loading, setLoading] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -44,10 +50,7 @@ export default function UserSettingsPage() {
       relation: "",
       phone: "",
     },
-  });
-
-
-
+  })
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -65,8 +68,8 @@ export default function UserSettingsPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = authUtils.getToken(); // Assuming you store JWT token
-        const res = await fetch("https://nyaymitra-backend.onrender.com/api/v1/auth/profile", {
+        const token = authUtils.getToken();
+        const res = await fetch("https://nyaymitra-backend-production.up.railway.app/api/v1/auth/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -76,14 +79,22 @@ export default function UserSettingsPage() {
 
         const data = await res.json();
         console.log("Fetched user data:", data);
-        setUser(data);
+
+        // Create a compatible user object for DashboardLayout
+        const layoutUser: LayoutUser = {
+          name: data.fullName || data.name || "User",
+          email: data.email || "",
+          avatar: data.profileImage || data.avatar
+        };
+
+        setUser(layoutUser);
 
         setProfileData({
           fullName: data.fullName || "",
           email: data.email || "",
           phone: data.phone || "",
           gender: data.gender || "",
-          dob: data.dob ? data.dob.slice(0, 10) : "", // format to YYYY-MM-DD
+          dob: data.dob ? data.dob.slice(0, 10) : "",
           language: data.language || "",
           timezone: data.timezone || "",
           profileImage: data.profileImage || "",
@@ -101,12 +112,11 @@ export default function UserSettingsPage() {
           },
         });
 
-
         setNotifications({
           emailBookings: data.notificationPreferences?.email ?? true,
           smsReminders: data.notificationPreferences?.sms ?? false,
           marketingEmails: data.notificationPreferences?.whatsapp ?? false,
-          emailReminders: true, // default if not in data
+          emailReminders: true,
         });
 
       } catch (error) {
@@ -117,14 +127,13 @@ export default function UserSettingsPage() {
     fetchProfile();
   }, []);
 
-
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const token = authUtils.getToken();
 
-      const res = await fetch("https://nyaymitra-backend.onrender.com/api/v1/auth/edit_user", {
+      const res = await fetch("https://nyaymitra-backend-production.up.railway.app/api/v1/auth/edit_user", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -162,15 +171,25 @@ export default function UserSettingsPage() {
       if (!res.ok) throw new Error("Failed to update profile");
 
       const updated = await res.json();
-      setUser(updated);
+
+      // Update the layout user with new data
+      const layoutUser: LayoutUser = {
+        name: updated.fullName || updated.name || "User",
+        email: updated.email || "",
+        avatar: updated.profileImage || updated.avatar
+      };
+
+      setUser(layoutUser);
       authUtils.setUser(updated);
+
+      alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
+      alert("Failed to update profile");
     } finally {
       setLoading(false);
     }
   };
-
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +199,7 @@ export default function UserSettingsPage() {
     }
     setLoading(true);
     try {
-      const token = authUtils.getToken(); // get from localStorage/cookie
+      const token = authUtils.getToken();
       const res = await fetch("https://nyaymitra-backend-production.up.railway.app/api/v1/auth/change-password", {
         method: "PUT",
         headers: {
@@ -209,15 +228,49 @@ export default function UserSettingsPage() {
     }
   };
 
-
   const handleNotificationUpdate = async (key: string, value: boolean) => {
     setNotifications((prev) => ({ ...prev, [key]: value }))
     try {
-      // In production: await userApi.updateNotifications({ [key]: value })
-      console.log("Notification updated:", key, value)
+      const token = authUtils.getToken();
+      const res = await fetch("https://nyaymitra-backend-production.up.railway.app/api/v1/auth/edit_user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          notificationPreferences: {
+            email: key === "emailBookings" ? value : notifications.emailBookings,
+            sms: key === "smsReminders" ? value : notifications.smsReminders,
+            whatsapp: key === "marketingEmails" ? value : notifications.marketingEmails,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update notifications");
+
+      console.log("Notification updated:", key, value);
     } catch (error) {
-      console.error("Error updating notification:", error)
+      console.error("Error updating notification:", error);
+      // Revert the change if it fails
+      setNotifications((prev) => ({ ...prev, [key]: !value }))
     }
+  }
+
+  // Show loading state while user data is being fetched
+  if (!user) {
+    return (
+      <ProtectedRoute requiredUserType="user">
+        <DashboardLayout userType="user" user={undefined}>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p>Loading user data...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
   }
 
   return (
@@ -234,7 +287,7 @@ export default function UserSettingsPage() {
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="billing">Billing</TabsTrigger>
+              {/* <TabsTrigger value="billing">Billing</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="profile" className="space-y-4">
@@ -250,7 +303,6 @@ export default function UserSettingsPage() {
                   <form onSubmit={handleProfileUpdate} className="space-y-6">
                     <div className="flex items-center gap-6">
                       <Avatar className="h-20 w-20">
-                        {/* Remove the conditional since we don't have profileImage */}
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-semibold flex items-center justify-center">
                           {profileData.fullName?.charAt(0)?.toUpperCase() || 'U'}
                         </AvatarFallback>
@@ -320,43 +372,21 @@ export default function UserSettingsPage() {
                     <Separator />
                     <h3 className="font-semibold">Emergency Contact</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {profileData.emergencyContact && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            placeholder="Name"
-                            value={profileData.emergencyContact.name}
-                            onChange={(e) =>
-                              setProfileData((prev) => ({
-                                ...prev,
-                                emergencyContact: { ...prev.emergencyContact, name: e.target.value },
-                              }))
-                            }
-                          />
-                          <Input
-                            placeholder="Relation"
-                            value={profileData.emergencyContact.relation}
-                            onChange={(e) =>
-                              setProfileData((prev) => ({
-                                ...prev,
-                                emergencyContact: { ...prev.emergencyContact, relation: e.target.value },
-                              }))
-                            }
-                          />
-                          <Input
-                            placeholder="Phone"
-                            value={profileData.emergencyContact.phone}
-                            onChange={(e) =>
-                              setProfileData((prev) => ({
-                                ...prev,
-                                emergencyContact: { ...prev.emergencyContact, phone: e.target.value },
-                              }))
-                            }
-                          />
-                        </div>
-                      )}
-
-                      <Input placeholder="Relation" value={profileData.emergencyContact.relation} onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, relation: e.target.value } }))} />
-                      <Input placeholder="Phone" value={profileData.emergencyContact.phone} onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, phone: e.target.value } }))} />
+                      <Input
+                        placeholder="Name"
+                        value={profileData.emergencyContact.name}
+                        onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, name: e.target.value } }))}
+                      />
+                      <Input
+                        placeholder="Relation"
+                        value={profileData.emergencyContact.relation}
+                        onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, relation: e.target.value } }))}
+                      />
+                      <Input
+                        placeholder="Phone"
+                        value={profileData.emergencyContact.phone}
+                        onChange={(e) => setProfileData((prev) => ({ ...prev, emergencyContact: { ...prev.emergencyContact, phone: e.target.value } }))}
+                      />
                     </div>
 
                     <Button type="submit" disabled={loading}>
@@ -366,7 +396,6 @@ export default function UserSettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
 
             <TabsContent value="security" className="space-y-4">
               <Card>
@@ -495,7 +524,7 @@ export default function UserSettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="billing" className="space-y-4">
+            {/* <TabsContent value="billing" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -548,7 +577,7 @@ export default function UserSettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </div>
       </DashboardLayout>

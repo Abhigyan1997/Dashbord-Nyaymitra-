@@ -5,7 +5,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useRouter } from "next/navigation"
-import { Calendar, User, Scale, Settings, LogOut, Menu, Bell, Search, Sparkles } from "lucide-react"
+import { Calendar, User, Scale, Settings, LogOut, Menu, Bell, Search, Sparkles, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -33,6 +33,7 @@ interface DashboardLayoutProps {
     email: string
     avatar?: string
   }
+
 }
 
 export function DashboardLayout({ children, userType, user }: DashboardLayoutProps) {
@@ -43,6 +44,7 @@ export function DashboardLayout({ children, userType, user }: DashboardLayoutPro
 
   const userNavItems = [
     { href: "/user/dashboard", label: "Dashboard", icon: User },
+    { href: "/user/orders", label: "My Orders", icon: FileText },
     { href: "/user/bookings", label: "My Bookings", icon: Calendar },
     { href: "/user/lawyers", label: "Find Lawyers", icon: Scale },
     { href: "/user/settings", label: "Settings", icon: Settings },
