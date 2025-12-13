@@ -669,7 +669,7 @@ export default function LawyerProfilePage() {
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={lawyer.avatar ? `${backendUrl}${lawyer.avatar}` : "/placeholder-lawyer.svg"} />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-secondary text-white">
-                      {lawyer.fullName.charAt(0)}
+                      {lawyer?.fullName?.charAt(0) || "?"}
                     </AvatarFallback>
                   </Avatar>
                   {uploadingAvatar && (
