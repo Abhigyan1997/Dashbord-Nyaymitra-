@@ -3,10 +3,8 @@ import axios from "axios"
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: "https://nyaymitra-backend-production.up.railway.app/api/v1",
-  headers: {
-    "Content-Type": "application/json",
-  },
 })
+
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
@@ -94,13 +92,8 @@ export const lawyerApi = {
   resubmitVerification: () => axios.post('/lawyer/verification/resubmit'),
   setAvailability: (data: { timeSlots: Array<{ day: string; slots: string[] }> }) =>
     api.put('/lawyer/availablity', data),
-  uploadAvatar: (formData: FormData, token: string | null) => {
-    return api.post('/auth/avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
-    });
+  uploadAvatar: (formData: FormData) => {
+    return api.put('/auth/profile-photo', formData)
   },
   getLawyerReviews: (lawyerId: string) => api.get(`/reviews/${lawyerId}`),
 

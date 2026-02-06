@@ -54,6 +54,7 @@ interface LawyerProfile {
   profileViews: number;
   verifiedByPlatform: boolean;
   profileCompletedPercentage: number;
+  profilePhoto?: string;
   avatar?: string;
   bio?: string;
   status?: 'online' | 'offline';
@@ -115,6 +116,7 @@ export default function LawyerProfilePage() {
   const [updating, setUpdating] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -122,21 +124,28 @@ export default function LawyerProfilePage() {
 
   const handleAvatarUpload = async (file: File) => {
     setUploadingAvatar(true);
+
     try {
-      const token = localStorage.getItem("token"); // or whatever key you stored it under
+      const token = localStorage.getItem("token");
 
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append("profilePhoto", file); // ✅ correct key
 
-      const response = await lawyerApi.uploadAvatar(formData, token);
+      const response = await lawyerApi.uploadAvatar(formData);
 
-      setLawyer(prev => prev ? { ...prev, avatar: response.data.url } : null);
-      setAvatarPreview(null); // Clear preview after successful upload
+      setLawyer(prev =>
+        prev
+          ? { ...prev, profilePhoto: response.data.photoUrl }
+          : null
+      );
+
+      setAvatarPreview(null);
 
       toast({
         title: "Success",
         description: "Profile picture updated successfully",
       });
+
     } catch (err) {
       toast({
         title: "Error",
@@ -149,22 +158,24 @@ export default function LawyerProfilePage() {
   };
 
 
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!e.target.files || !e.target.files[0]) return;
+
+    const file = e.target.files[0];
+
+    setSelectedFile(file);
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
   };
+
 
   const [profileData, setProfileData] = useState({
     fullName: "",
     email: "",
     phone: "",
+    profilePhoto: "",
     barCouncilId: "",
     specialization: [""],
     city: "",
@@ -203,6 +214,7 @@ export default function LawyerProfilePage() {
         setProfileData({
           fullName: profileRes.data.fullName,
           email: profileRes.data.email,
+          profilePhoto: profileRes.data.profilePhoto || profileRes.data.avatar || "",
           phone: profileRes.data.phone,
           barCouncilId: profileRes.data.barCouncilId,
           specialization: profileRes.data.specialization,
@@ -390,7 +402,7 @@ export default function LawyerProfilePage() {
                   <div className="flex flex-col sm:flex-row gap-6">
                     <div className="relative flex-shrink-0">
                       <Avatar className="h-32 w-32 border-4 border-white shadow-md">
-                        <AvatarImage src={lawyer.avatar || "/placeholder-lawyer.svg"} alt={lawyer.fullName} />
+                        <AvatarImage src={lawyer.profilePhoto || lawyer.avatar || "/placeholder-lawyer.svg"} alt={lawyer.fullName} />
                         <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-secondary text-white">
                           {lawyer?.fullName ? lawyer.fullName.charAt(0) : ''}
                         </AvatarFallback>
@@ -667,7 +679,7 @@ export default function LawyerProfilePage() {
               <div className="flex flex-col items-center gap-4 mb-6">
                 <div className="relative">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={lawyer.avatar ? `${backendUrl}${lawyer.avatar}` : "/placeholder-lawyer.svg"} />
+                    <AvatarImage src={lawyer.profilePhoto || lawyer.avatar || "/placeholder-lawyer.svg"} />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-secondary text-white">
                       {lawyer?.fullName?.charAt(0) || "?"}
                     </AvatarFallback>
@@ -699,7 +711,7 @@ export default function LawyerProfilePage() {
                     <div className="flex gap-2 justify-center">
                       <Button
                         size="sm"
-                        onClick={() => handleAvatarUpload((document.getElementById('avatar-upload') as HTMLInputElement).files![0])}
+                        onClick={() => selectedFile && handleAvatarUpload(selectedFile)}
                         disabled={uploadingAvatar}
                       >
                         {uploadingAvatar ? "Uploading..." : "Save Photo"}
@@ -707,7 +719,7 @@ export default function LawyerProfilePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAvatarPreview(null)}
+                        onClick={() => selectedFile && handleAvatarUpload(selectedFile)}
                         disabled={uploadingAvatar}
                       >
                         Cancel

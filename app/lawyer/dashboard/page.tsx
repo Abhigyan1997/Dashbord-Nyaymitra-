@@ -37,11 +37,13 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { lawyerApi } from "@/lib/api"
 import { auth } from "@/lib/auth"
 import { AxiosError } from "axios"
+import { profile } from "console"
 
 interface UserDetails {
   fullName: string;
   email: string;
   phone: string;
+  profilePhoto?: string;
 }
 
 interface Consultation {
@@ -126,7 +128,8 @@ export default function LawyerDashboard() {
           userDetails: {
             fullName: c.userDetails?.fullName || "Unknown User",
             email: c.userDetails?.email || "N/A",
-            phone: c.userDetails?.phone || ""
+            phone: c.userDetails?.phone || "",
+            profilePhoto: c.userDetails?.profilePhoto || "",
           }
         }))
         setUpcomingConsultations(transformedUpcoming)
@@ -316,9 +319,20 @@ export default function LawyerDashboard() {
               <div className="flex flex-col sm:flex-row gap-8">
                 <div className="relative">
                   <Avatar className="h-24 w-24 border-2 border-emerald-400/30">
-                    <AvatarFallback className="text-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                      {lawyer?.name?.charAt(0).toUpperCase() || "L"}
-                    </AvatarFallback>
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage
+                        src={
+                          lawyer?.profilePhoto ||
+                          lawyer?.avatar ||
+                          undefined
+                        }
+                        alt={lawyer?.fullName || lawyer?.name}
+                      />
+                      <AvatarFallback className="text-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                        {(lawyer?.fullName || lawyer?.name)?.charAt(0).toUpperCase() || "L"}
+                      </AvatarFallback>
+                    </Avatar>
+
                   </Avatar>
                   <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
                     <Award className="w-4 h-4 text-white" />
