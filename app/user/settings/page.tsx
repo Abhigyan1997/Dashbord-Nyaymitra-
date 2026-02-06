@@ -20,6 +20,7 @@ import { authUtils } from "@/lib/auth"
 interface LayoutUser {
   name: string
   email: string
+  profilePhoto?: string
   avatar?: string
 }
 
@@ -37,7 +38,7 @@ export default function UserSettingsPage() {
     dob: "",
     language: "",
     timezone: "",
-    profileImage: "",
+    profilePhoto: "",
     address: {
       street: "",
       city: "",
@@ -84,7 +85,7 @@ export default function UserSettingsPage() {
         const layoutUser: LayoutUser = {
           name: data.fullName || data.name || "User",
           email: data.email || "",
-          avatar: data.profileImage || data.avatar
+          profilePhoto: data.profilePhoto || data.avatar
         };
 
         setUser(layoutUser);
@@ -97,7 +98,7 @@ export default function UserSettingsPage() {
           dob: data.dob ? data.dob.slice(0, 10) : "",
           language: data.language || "",
           timezone: data.timezone || "",
-          profileImage: data.profileImage || "",
+          profilePhoto: data.profilePhoto || data.avatar || "",
           address: {
             street: data.address?.street || "",
             city: data.address?.city || "",
@@ -145,7 +146,7 @@ export default function UserSettingsPage() {
           phone: profileData.phone,
           gender: profileData.gender,
           dob: profileData.dob,
-          profileImage: profileData.profileImage,
+          profilePhoto: profileData.profilePhoto,
           language: profileData.language,
           timezone: profileData.timezone,
           address: {
@@ -190,6 +191,48 @@ export default function UserSettingsPage() {
       setLoading(false);
     }
   };
+
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!e.target.files || !e.target.files[0]) return;
+
+    const file = e.target.files[0];
+
+    const formData = new FormData();
+    formData.append("profilePhoto", file);
+
+    try {
+      const token = authUtils.getToken();
+
+      const res = await fetch(
+        "https://nyaymitra-backend-production.up.railway.app/api/v1/auth/profile-photo",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      // Update preview instantly
+      setProfileData((prev) => ({
+        ...prev,
+        profilePhoto: data.profilePhoto,
+      }));
+
+      alert("Profile photo updated!");
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image");
+    }
+  };
+
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,23 +344,28 @@ export default function UserSettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleProfileUpdate} className="space-y-6">
-                    <div className="flex items-center gap-6">
-                      <Avatar className="h-20 w-20">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-semibold flex items-center justify-center">
-                          {profileData.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                    <div className="relative w-20 h-20">
+                      <Avatar className="h-20 w-20 cursor-pointer">
+                        <AvatarImage
+                          src={profileData.profilePhoto || undefined}
+                          alt={profileData.fullName}
+                        />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-3xl font-semibold">
+                          {profileData.fullName?.charAt(0)?.toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
 
-                      <div>
-                        <Input
-                          type="url"
-                          placeholder="Image URL"
-                          value={profileData.profileImage}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, profileImage: e.target.value }))}
-                        />
-                        <p className="text-sm text-muted-foreground mt-2">JPG, GIF or PNG. 1MB max.</p>
-                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={handleImageUpload}
+                      />
                     </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      Click avatar to change photo (Max 5MB)
+                    </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">

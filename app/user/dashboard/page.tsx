@@ -232,7 +232,7 @@ export default function UserDashboard() {
                 <div className="relative">
                   <Avatar className="h-24 w-24 border-2 border-blue-400/30">
                     <AvatarImage
-                      src={user.avatar}
+                      src={user?.profileImage || user?.profilePhoto || user?.avatar || undefined}
                       alt={user?.name || "User"}
                       onError={(e) => (e.currentTarget.style.display = "none")}
                     />

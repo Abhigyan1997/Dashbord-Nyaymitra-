@@ -12,6 +12,7 @@ interface AuthUser {
   name: string
   email: string
   userType: "user" | "lawyer"
+  profilePhoto?: string
   avatar?: string
   token: string
   phone?: string;        // ✅ Add this
@@ -71,7 +72,7 @@ export const authUtils = {
       fullName: parsedUser.fullName || parsedUser.name,
       email: parsedUser.email,
       userType: parsedUser.userType,
-      avatar: parsedUser.avatar,
+      profilePhoto: parsedUser.profilePhoto || parsedUser.avatar,
       token: parsedUser.token,
       phone: parsedUser.phone || "",
       address: parsedUser.address || {
@@ -128,7 +129,7 @@ export const auth = {
         name: user.name || user.fullName,
         email: user.email,
         userType: user.userType || user.role,
-        avatar: user.avatar || user.profilePicture,
+        profilePhoto: user.avatar || user.profilePhoto,
         token: authUtils.getToken() || "",
       }
     } catch (error: any) {
